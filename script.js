@@ -42,6 +42,17 @@ function showScreen(el) {
   for (const s of overlayScreens) s.classList.toggle("hidden", s !== el);
 }
 
+// Briefly ignore overlay-button clicks after a screen appears, so a rapid
+// in-flight click (e.g. from spamming drops) can't blow straight through the
+// reward or game-over screen.
+let screenActionsLockedUntil = 0;
+function lockScreenActions(ms = 600) {
+  screenActionsLockedUntil = performance.now() + ms;
+}
+function screenActionsLocked() {
+  return performance.now() < screenActionsLockedUntil;
+}
+
 const rewardSubtitle = screenReward.querySelector(".overlay-subtitle");
 const rewardCode = screenReward.querySelector(".reward-code");
 
@@ -590,6 +601,7 @@ function endGame() {
 
   overlay.classList.remove("hidden");
   showScreen(screenGameover);
+  lockScreenActions();
 }
 
 // Drop the active ingredient, trimming it to its overlap with the surface below.
@@ -1034,6 +1046,7 @@ function triggerReward(cfg) {
   screenDifficulty.classList.add("hidden");
   screenReward.classList.remove("hidden");
   overlay.classList.remove("hidden");
+  lockScreenActions();
 }
 
 function frame(timestamp) {
@@ -1070,13 +1083,20 @@ difficultyBtns.forEach((btn) => {
 });
 
 // Play Again restarts immediately at the same difficulty.
-playAgainBtn.addEventListener("click", () => startGame(state.difficulty));
+playAgainBtn.addEventListener("click", () => {
+  if (screenActionsLocked()) return;
+  startGame(state.difficulty);
+});
 
 // Quit returns to the "Bowl Builder" home screen.
-quitBtn.addEventListener("click", showStartScreen);
+quitBtn.addEventListener("click", () => {
+  if (screenActionsLocked()) return;
+  showStartScreen();
+});
 
 // Resume play after the reward screen.
 rewardBtn.addEventListener("click", () => {
+  if (screenActionsLocked()) return;
   state.paused = false;
   overlay.classList.add("hidden");
   clearConfetti();
