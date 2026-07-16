@@ -47,7 +47,19 @@
             <button class="btn difficulty-btn" type="button" data-difficulty="impossible">Impossible</button>
           </div>
         </div>
+
+        <!-- Reward screen -->
+        <div id="screen-reward" class="overlay-panel hidden">
+          <div class="reward-emoji">🎉</div>
+          <h1 class="overlay-title">Congrats!</h1>
+          <p class="overlay-subtitle">You reached 30 — here's 5% off your next bowl.</p>
+          <div class="reward-code">POKEREWARDS30</div>
+          <button id="reward-btn" class="btn" type="button">Keep Playing</button>
+        </div>
       </div>
+
+      <!-- Confetti overlay (in front, non-interactive) -->
+      <canvas id="confetti" class="confetti" width="800" height="600"></canvas>
     </main>
   </div>
 

@@ -144,6 +144,36 @@ body {
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
 }
 
+/* Reward screen */
+.reward-emoji {
+  font-size: 3rem;
+  line-height: 1;
+  margin-bottom: 0.35rem;
+}
+
+.reward-code {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #fff;
+  background: rgba(253, 159, 39, 0.18);
+  border: 1px dashed var(--accent);
+  border-radius: 10px;
+  padding: 0.65rem 1.1rem;
+  margin: 0 0 1.5rem;
+}
+
+/* Confetti sits in front of everything but never intercepts clicks. */
+.confetti {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 30;
+}
+
 /* Difficulty selection */
 .difficulty-options {
   display: flex;

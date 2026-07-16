@@ -26,9 +26,19 @@ const scoreEl = document.getElementById("score");
 const highScoreEl = document.getElementById("high-score");
 const screenStart = document.getElementById("screen-start");
 const screenDifficulty = document.getElementById("screen-difficulty");
+const screenReward = document.getElementById("screen-reward");
+const rewardBtn = document.getElementById("reward-btn");
 const screenStartTitle = screenStart.querySelector(".overlay-title");
 const screenStartSubtitle = screenStart.querySelector(".overlay-subtitle");
 const difficultyBtns = document.querySelectorAll(".difficulty-btn");
+
+const confettiCanvas = document.getElementById("confetti");
+const cctx = confettiCanvas.getContext("2d");
+const CW = confettiCanvas.width;
+const CH = confettiCanvas.height;
+
+// Reach this score to earn the (example) reward.
+const REWARD_SCORE = 30;
 
 // Internal (fixed) canvas resolution — world coordinates use this space.
 const W = canvas.width; // 800
@@ -280,6 +290,8 @@ const HIGH_SCORE_KEY = "pokeworks-high-score";
 
 const state = {
   running: false,
+  paused: false, // frozen while the reward screen is up
+  rewarded: false, // reward already earned this game
   score: 0,
   highScore: 0,
   difficulty: null,
@@ -488,11 +500,13 @@ function applyCamera() {
 
 function showDifficulty() {
   screenStart.classList.add("hidden");
+  screenReward.classList.add("hidden");
   screenDifficulty.classList.remove("hidden");
 }
 
 function showStartScreen() {
   screenDifficulty.classList.add("hidden");
+  screenReward.classList.add("hidden");
   screenStart.classList.remove("hidden");
 }
 
@@ -519,6 +533,8 @@ function spawnActive() {
 function startGame(difficulty) {
   ensureAudio();
   state.running = true;
+  state.paused = false;
+  state.rewarded = false;
   state.difficulty = difficulty;
   setScore(0);
 
@@ -527,6 +543,7 @@ function startGame(difficulty) {
   state.shards = [];
   state.cam = { scale: ZOOM_IN, focusWorldY: BOWL_CENTER_Y, focusScreenY: H * 0.5 };
   spawnActive();
+  clearConfetti();
 
   overlay.classList.add("hidden");
   if (document.activeElement && document.activeElement.blur) {
@@ -551,7 +568,7 @@ function endGame() {
 
 // Drop the active ingredient, trimming it to its overlap with the surface below.
 function dropActive() {
-  if (!state.running || !state.active) return;
+  if (!state.running || state.paused || !state.active) return;
 
   const below = surfaceBelow();
   const active = state.active;
@@ -596,6 +613,12 @@ function dropActive() {
   else playLand();
 
   spawnActive();
+
+  // Earn the example reward the first time you reach the target score.
+  if (!state.rewarded && state.score >= REWARD_SCORE) {
+    state.rewarded = true;
+    triggerReward();
+  }
 }
 
 // --- Loop & rendering ---------------------------------------------------
@@ -914,17 +937,89 @@ function renderMenu() {
   }
 }
 
+// --- Reward + confetti --------------------------------------------------
+
+const CONFETTI_COLORS = ["#fd9f27", "#4caf72", "#e2574c", "#f5d64e", "#6cc0d6", "#ffffff", "#c98a5e"];
+const confetti = [];
+
+function spawnConfetti(n) {
+  for (let i = 0; i < n; i++) {
+    confetti.push({
+      x: Math.random() * CW,
+      y: -20 - Math.random() * 80,
+      vx: (Math.random() - 0.5) * 120,
+      vy: 60 + Math.random() * 170,
+      size: 5 + Math.random() * 6,
+      rot: Math.random() * Math.PI,
+      vrot: (Math.random() - 0.5) * 8,
+      sway: Math.random() * Math.PI * 2,
+      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+    });
+  }
+}
+
+function updateConfetti(dt) {
+  if (state.paused && confetti.length < 220) spawnConfetti(3); // keep it going while shown
+  for (let i = confetti.length - 1; i >= 0; i--) {
+    const c = confetti[i];
+    c.sway += dt * 4;
+    c.vy += 260 * dt;
+    c.x += (c.vx + Math.sin(c.sway) * 30) * dt;
+    c.y += c.vy * dt;
+    c.rot += c.vrot * dt;
+    if (c.y > CH + 30) confetti.splice(i, 1);
+  }
+}
+
+function renderConfetti() {
+  cctx.clearRect(0, 0, CW, CH);
+  for (const c of confetti) {
+    cctx.save();
+    cctx.translate(c.x, c.y);
+    cctx.rotate(c.rot);
+    cctx.fillStyle = c.color;
+    cctx.fillRect(-c.size / 2, -c.size * 0.35, c.size, c.size * 0.7);
+    cctx.restore();
+  }
+}
+
+function clearConfetti() {
+  confetti.length = 0;
+  cctx.clearRect(0, 0, CW, CH);
+}
+
+// A cheerful little arpeggio.
+function playReward() {
+  const notes = [523, 659, 784, 1047];
+  notes.forEach((f, i) => tone({ freq: f, type: "triangle", dur: 0.18, gain: 0.18, delay: i * 0.09 }));
+}
+
+function triggerReward() {
+  state.paused = true;
+  spawnConfetti(160);
+  playReward();
+  screenStart.classList.add("hidden");
+  screenDifficulty.classList.add("hidden");
+  screenReward.classList.remove("hidden");
+  overlay.classList.remove("hidden");
+}
+
 function frame(timestamp) {
   if (!state.lastTime) state.lastTime = timestamp;
   const dt = Math.min((timestamp - state.lastTime) / 1000, 0.05); // clamp big gaps
   state.lastTime = timestamp;
 
   if (state.running) {
-    update(dt);
+    if (!state.paused) update(dt); // freeze the game while the reward screen is up
     render();
   } else {
     updateMenu(dt);
     renderMenu();
+  }
+
+  if (state.paused) {
+    updateConfetti(dt);
+    renderConfetti();
   }
 
   requestAnimationFrame(frame);
@@ -941,6 +1036,19 @@ startBtn.addEventListener("click", () => {
 
 difficultyBtns.forEach((btn) => {
   btn.addEventListener("click", () => startGame(btn.dataset.difficulty));
+});
+
+// Resume play after the reward screen.
+rewardBtn.addEventListener("click", () => {
+  state.paused = false;
+  overlay.classList.add("hidden");
+  screenReward.classList.add("hidden");
+  screenStart.classList.remove("hidden"); // ready for a later game-over
+  clearConfetti();
+  state.lastTime = 0; // avoid a big dt jump on resume
+  if (document.activeElement && document.activeElement.blur) {
+    document.activeElement.blur();
+  }
 });
 
 canvas.addEventListener("pointerdown", dropActive);
