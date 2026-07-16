@@ -1,7 +1,8 @@
-// --- Pokeworks stacking minigame ---------------------------------------
-// Slide an ingredient left/right, drop it, and try to line it up with the
-// piece below. Any overhang gets trimmed, so the stack narrows over time.
-// Miss the stack completely and it's game over. Difficulty sets the speed.
+// --- Pokeworks bowl-stacking minigame ----------------------------------
+// Slide an ingredient over the bowl and drop it. It has to land on whatever
+// is below (the bowl's opening for the first one, the last ingredient after
+// that). Any overhang is trimmed, so the bowl narrows as you build it up.
+// Miss completely and it's game over. Difficulty sets the slide speed.
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
@@ -20,10 +21,21 @@ const W = canvas.width; // 800
 const H = canvas.height; // 600
 
 const BLOCK_H = 34; // height of each ingredient slab
-const STACK_TOP_Y = 300; // screen y of the top placed block; stack grows downward off-screen
-const BASE_WIDTH = 220; // width of the starting slab
+const TOP_MARGIN = 70; // once the active block would rise above this, the camera scrolls
 
-// Ingredient-ish colors, cycled as the tower grows.
+// The bowl, in world coordinates. Its opening (rim ellipse) is the base the
+// first ingredient must land in.
+const BOWL = {
+  cx: W / 2, // 400
+  rimY: 430, // world y of the rim's center line
+  rimRx: 150, // half the opening width
+  rimRy: 26, // rim ellipse vertical radius (perspective)
+  bottomY: 560,
+};
+const BOWL_OPEN_X = BOWL.cx - BOWL.rimRx;
+const BOWL_OPEN_WIDTH = BOWL.rimRx * 2;
+
+// Ingredient-ish colors, cycled as the bowl fills up.
 const COLORS = [
   "#fd9f27", // salmon
   "#4caf72", // avocado
@@ -47,8 +59,8 @@ const state = {
   score: 0,
   highScore: 0,
   difficulty: null,
-  placed: [], // stack of { x, width, color }, index 0 = bottom
-  active: null, // the moving block: { x, width, color, dir }
+  placed: [], // ingredients in the bowl: { x, width, color }, index 0 = bottom
+  active: null, // the moving ingredient: { x, width, color, dir }
   lastTime: 0,
   rafId: 0,
 };
@@ -86,6 +98,20 @@ function colorFor(index) {
   return COLORS[index % COLORS.length];
 }
 
+// The surface the next ingredient must land on: the bowl opening for the
+// first one, otherwise the top ingredient already in the bowl.
+function surfaceBelow() {
+  if (state.placed.length === 0) {
+    return { x: BOWL_OPEN_X, width: BOWL_OPEN_WIDTH };
+  }
+  return state.placed[state.placed.length - 1];
+}
+
+// World-space top edge of the ingredient (or active block) at a given index.
+function worldTopForIndex(index) {
+  return BOWL.rimY - index * BLOCK_H - BLOCK_H;
+}
+
 // --- Screen / flow helpers ---------------------------------------------
 
 function showDifficulty() {
@@ -101,10 +127,10 @@ function showStartScreen() {
 // --- Game lifecycle -----------------------------------------------------
 
 function spawnActive() {
-  const top = state.placed[state.placed.length - 1];
+  const below = surfaceBelow();
   state.active = {
     x: 0,
-    width: top.width,
+    width: below.width,
     color: colorFor(state.placed.length),
     dir: 1,
   };
@@ -115,10 +141,8 @@ function startGame(difficulty) {
   state.difficulty = difficulty;
   setScore(0);
 
-  // Seed the stack with a centered base slab, then a moving block above it.
-  state.placed = [
-    { x: (W - BASE_WIDTH) / 2, width: BASE_WIDTH, color: colorFor(0) },
-  ];
+  // Start with an empty bowl and the first ingredient sliding over it.
+  state.placed = [];
   spawnActive();
 
   overlay.classList.add("hidden");
@@ -140,19 +164,19 @@ function endGame() {
 
   screenStartTitle.textContent = "Game Over";
   screenStartSubtitle.textContent = isNewBest
-    ? `New best — ${state.score} stacked!`
-    : `You stacked ${state.score} ingredient${state.score === 1 ? "" : "s"}. Play again?`;
+    ? `New best — ${state.score} in the bowl!`
+    : `You added ${state.score} ingredient${state.score === 1 ? "" : "s"}. Play again?`;
   startBtn.textContent = "Play Again";
 
   overlay.classList.remove("hidden");
   showStartScreen();
 }
 
-// Drop the active block, trimming it to its overlap with the block below.
+// Drop the active ingredient, trimming it to its overlap with the surface below.
 function dropActive() {
   if (!state.running || !state.active) return;
 
-  const below = state.placed[state.placed.length - 1];
+  const below = surfaceBelow();
   const active = state.active;
 
   const overlapLeft = Math.max(active.x, below.x);
@@ -160,12 +184,12 @@ function dropActive() {
   const overlap = overlapRight - overlapLeft;
 
   if (overlap <= 0) {
-    endGame();
+    endGame(); // missed the bowl / the stack entirely
     return;
   }
 
   state.placed.push({ x: overlapLeft, width: overlap, color: active.color });
-  setScore(state.placed.length - 1);
+  setScore(state.placed.length);
   spawnActive();
 }
 
@@ -190,6 +214,12 @@ function update(dt) {
   }
 }
 
+// How far the whole scene is shifted down so the active block stays on screen.
+function cameraOffset() {
+  const activeTop = worldTopForIndex(state.placed.length);
+  return Math.max(0, TOP_MARGIN - activeTop);
+}
+
 function drawBlock(x, topY, width, color) {
   ctx.fillStyle = color;
   ctx.beginPath();
@@ -203,26 +233,71 @@ function drawBlock(x, topY, width, color) {
   ctx.fill();
 }
 
+// Bowl body + hollow interior. Drawn behind the ingredients.
+function drawBowlBody(camY) {
+  const { cx, rimRx, rimRy } = BOWL;
+  const rimY = BOWL.rimY + camY;
+  const bottomY = BOWL.bottomY + camY;
+
+  // Soft shadow on the ground beneath the bowl.
+  ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+  ctx.beginPath();
+  ctx.ellipse(cx, bottomY + 14, rimRx * 0.9, 12, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Bowl body: rim sides curving down to a rounded base, closed by the front rim arc.
+  ctx.beginPath();
+  ctx.moveTo(cx - rimRx, rimY);
+  ctx.quadraticCurveTo(cx - rimRx, bottomY, cx, bottomY);
+  ctx.quadraticCurveTo(cx + rimRx, bottomY, cx + rimRx, rimY);
+  ctx.ellipse(cx, rimY, rimRx, rimRy, 0, 0, Math.PI, false);
+  ctx.closePath();
+  ctx.fillStyle = "#e9dcc6";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(60, 40, 20, 0.35)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Hollow opening.
+  ctx.beginPath();
+  ctx.ellipse(cx, rimY, rimRx, rimRy, 0, 0, Math.PI * 2);
+  ctx.fillStyle = "#c9b596";
+  ctx.fill();
+}
+
+// The front lip of the rim, drawn over the ingredients so they look contained.
+function drawBowlRimFront(camY) {
+  const rimY = BOWL.rimY + camY;
+  ctx.beginPath();
+  ctx.ellipse(BOWL.cx, rimY, BOWL.rimRx, BOWL.rimRy, 0, 0, Math.PI, false);
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+}
+
 function render() {
   ctx.clearRect(0, 0, W, H);
+  const camY = cameraOffset();
 
-  // Placed blocks: top block sits at STACK_TOP_Y, others cascade downward.
-  const topIndex = state.placed.length - 1;
+  drawBowlBody(camY);
+
+  // Ingredients, bottom to top.
   for (let i = 0; i < state.placed.length; i++) {
-    const depth = topIndex - i;
     const b = state.placed[i];
-    drawBlock(b.x, STACK_TOP_Y + depth * BLOCK_H, b.width, b.color);
+    drawBlock(b.x, worldTopForIndex(i) + camY, b.width, b.color);
   }
 
-  // Active (moving) block hovers one row above the top of the stack.
+  // Active (sliding) ingredient sits in the next slot up.
   if (state.active) {
     drawBlock(
       state.active.x,
-      STACK_TOP_Y - BLOCK_H,
+      worldTopForIndex(state.placed.length) + camY,
       state.active.width,
       state.active.color
     );
   }
+
+  drawBowlRimFront(camY);
 }
 
 function loop(timestamp) {
@@ -243,8 +318,7 @@ function loop(timestamp) {
 startBtn.addEventListener("click", () => {
   // Reset the start screen back to its initial copy before choosing difficulty.
   screenStartTitle.textContent = "Minigame";
-  screenStartSubtitle.textContent =
-    "Stack the ingredients — click or press Space to drop.";
+  screenStartSubtitle.textContent = "Stack the ingredients to score.";
   startBtn.textContent = "Start";
   showDifficulty();
 });
