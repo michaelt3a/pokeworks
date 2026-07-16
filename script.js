@@ -28,14 +28,22 @@ const screenStart = document.getElementById("screen-start");
 const screenDifficulty = document.getElementById("screen-difficulty");
 const screenReward = document.getElementById("screen-reward");
 const screenGameover = document.getElementById("screen-gameover");
+const screenPaused = document.getElementById("screen-paused");
 const rewardBtn = document.getElementById("reward-btn");
+const orderBtn = document.getElementById("order-btn");
 const playAgainBtn = document.getElementById("play-again-btn");
 const quitBtn = document.getElementById("quit-btn");
+const resumeBtn = document.getElementById("resume-btn");
+const pauseQuitBtn = document.getElementById("pause-quit-btn");
 const gameoverSubtitle = document.getElementById("gameover-subtitle");
 const gameoverQuip = document.getElementById("gameover-quip");
 const difficultyBtns = document.querySelectorAll(".difficulty-btn");
+const comboEl = document.getElementById("combo");
+const comboCountEl = document.getElementById("combo-count");
+const pauseBtn = document.getElementById("pause-btn");
+const muteBtn = document.getElementById("mute-btn");
 
-const overlayScreens = [screenStart, screenDifficulty, screenReward, screenGameover];
+const overlayScreens = [screenStart, screenDifficulty, screenReward, screenGameover, screenPaused];
 
 // Show a single overlay panel and hide the rest.
 function showScreen(el) {
@@ -132,25 +140,36 @@ function strand(x, y, w, yy, amp, freq, phase, style, lw) {
   ctx.stroke();
 }
 
+// Scattered rice-style grains in three shades — used by the rice bases.
+function grains(x, y, w, h, shades) {
+  for (let gy = y + 3; gy < y + h - 1; gy += 5) {
+    for (let gx = x + 3; gx < x + w - 1; gx += 7) {
+      const rx = gx + (hashRnd(gx, gy) - 0.5) * 6;
+      const ry = gy + (hashRnd(gx + 9, gy) - 0.5) * 4;
+      const s = hashRnd(gx * 1.3, gy * 0.7);
+      ctx.fillStyle = s < 0.34 ? shades[0] : s < 0.67 ? shades[1] : shades[2];
+      ctx.save();
+      ctx.translate(rx, ry);
+      ctx.rotate(hashRnd(gx, gy * 2) * Math.PI);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 2.4, 1.1, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+}
+
 const INGREDIENTS = {
   rice: {
     base: "#f4efe2",
     detail(x, y, w, h) {
-      for (let gy = y + 3; gy < y + h - 1; gy += 5) {
-        for (let gx = x + 3; gx < x + w - 1; gx += 7) {
-          const rx = gx + (hashRnd(gx, gy) - 0.5) * 6;
-          const ry = gy + (hashRnd(gx + 9, gy) - 0.5) * 4;
-          const shade = hashRnd(gx * 1.3, gy * 0.7);
-          ctx.fillStyle = shade < 0.34 ? "#ffffff" : shade < 0.67 ? "#efe7d3" : "#e4dabf";
-          ctx.save();
-          ctx.translate(rx, ry);
-          ctx.rotate(hashRnd(gx, gy * 2) * Math.PI);
-          ctx.beginPath();
-          ctx.ellipse(0, 0, 2.4, 1.1, 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        }
-      }
+      grains(x, y, w, h, ["#ffffff", "#efe7d3", "#e4dabf"]);
+    },
+  },
+  brownRice: {
+    base: "#c9a97a",
+    detail(x, y, w, h) {
+      grains(x, y, w, h, ["#d8bb8e", "#c3a271", "#b08d5c"]);
     },
   },
   salmon: {
@@ -283,9 +302,96 @@ const INGREDIENTS = {
       }
     },
   },
+  corn: {
+    base: "#efc13c",
+    detail(x, y, w, h) {
+      cubes(x, y, w, h, "#ffe084", "rgba(180,140,20,0.3)", 6);
+    },
+  },
+  mandarin: {
+    base: "#f2922e",
+    detail(x, y, w, h) {
+      for (let gx = x + 3; gx < x + w - 4; gx += 12) {
+        ctx.fillStyle = "#ffb85a";
+        ctx.beginPath();
+        ctx.roundRect(gx, y + 3, 9, h - 6, 3);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255,240,220,0.55)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    },
+  },
+  surimi: {
+    base: "#f5f0e6",
+    detail(x, y, w, h) {
+      ctx.fillStyle = "#e0644f"; // red crab-stick edge
+      ctx.fillRect(x, y, w, Math.max(3, h * 0.26));
+      ctx.fillStyle = "rgba(224,100,79,0.4)";
+      for (let gx = x + 8; gx < x + w - 2; gx += 16) ctx.fillRect(gx, y + h * 0.45, 2, h * 0.4);
+    },
+  },
+  tofu: {
+    base: "#f2eede",
+    detail(x, y, w, h) {
+      cubes(x, y, w, h, "#faf6ec", "rgba(180,170,140,0.4)", 10);
+    },
+  },
+  masago: {
+    base: "#ef8a3c",
+    detail(x, y, w, h) {
+      for (let gy = y + 3; gy < y + h - 1; gy += 4) {
+        for (let gx = x + 3; gx < x + w - 1; gx += 4) {
+          ctx.fillStyle = hashRnd(gx, gy) < 0.5 ? "#ffc46b" : "#ffab4d";
+          ctx.beginPath();
+          ctx.arc(gx + (hashRnd(gx, gy) - 0.5) * 2, gy, 1.3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    },
+  },
+  ginger: {
+    base: "#f3c6cd",
+    detail(x, y, w, h) {
+      ctx.strokeStyle = "rgba(214,140,156,0.6)";
+      ctx.lineWidth = 1.4;
+      for (let gx = x + 6; gx < x + w - 2; gx += 14) {
+        ctx.beginPath();
+        ctx.moveTo(gx, y + 2);
+        ctx.quadraticCurveTo(gx + 6, y + h * 0.5, gx, y + h - 2);
+        ctx.stroke();
+      }
+    },
+  },
+  kale: {
+    base: "#2f6b3a",
+    detail(x, y, w, h) {
+      for (let gx = x + 3; gx < x + w - 1; gx += 6) {
+        for (let gy = y + 3; gy < y + h - 1; gy += 6) {
+          const j = hashRnd(gx, gy);
+          ctx.fillStyle = j < 0.5 ? "#3f8a48" : "#245a30";
+          ctx.beginPath();
+          ctx.arc(gx + (j - 0.5) * 3, gy + (hashRnd(gy, gx) - 0.5) * 3, 2.4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    },
+  },
+  chicken: {
+    base: "#d6ac78",
+    detail(x, y, w, h) {
+      cubes(x, y, w, h, "#e6c79a", "rgba(120,85,45,0.35)", 9);
+      ctx.fillStyle = "rgba(90,60,30,0.4)"; // seared specks
+      for (let gx = x + 8; gx < x + w - 2; gx += 16) {
+        ctx.fillRect(gx, y + h * 0.5 + (hashRnd(gx, 1) - 0.5) * 6, 4, 1.5);
+      }
+    },
+  },
 };
 
-// The first ingredient is always the rice base; the rest cycle as toppings.
+// Index 0 is a randomly chosen base; every layer above is a random topping
+// (never the same as the one directly below it), so the order varies each game.
+const BASES = ["rice", "brownRice"];
 const TOPPINGS = [
   "salmon",
   "tuna",
@@ -297,7 +403,29 @@ const TOPPINGS = [
   "edamame",
   "pineapple",
   "cilantro",
+  "corn",
+  "mandarin",
+  "surimi",
+  "tofu",
+  "masago",
+  "ginger",
+  "kale",
+  "chicken",
 ];
+
+function randomFrom(keys) {
+  return INGREDIENTS[keys[Math.floor(Math.random() * keys.length)]];
+}
+
+// A random topping that isn't the one directly below (avoids two identical
+// layers in a row).
+function randomTopping(exclude) {
+  let ing;
+  do {
+    ing = randomFrom(TOPPINGS);
+  } while (ing === exclude && TOPPINGS.length > 1);
+  return ing;
+}
 
 // Slide speed (px/sec) per difficulty, how much it ramps up per block, and an
 // optional smaller starting block (defaults to the full bowl opening).
@@ -312,9 +440,12 @@ const HIGH_SCORE_KEY = "pokeworks-high-score";
 
 const state = {
   running: false,
-  paused: false, // frozen while the reward screen is up
+  paused: false, // frozen while a reward / pause screen is up
+  rewardShowing: false, // the reward screen (with confetti) is up
   rewarded: false, // reward already earned this game
+  muted: false,
   score: 0,
+  combo: 0, // consecutive perfect drops
   highScore: 0,
   difficulty: null,
   placed: [], // ingredients in the bowl: { x, width, color, landAnim }, index 0 = floor
@@ -344,7 +475,7 @@ function ensureAudio() {
 
 // A short enveloped tone, optionally gliding from freq to freqEnd.
 function tone({ freq, freqEnd = null, type = "sine", dur = 0.12, gain = 0.25, delay = 0 }) {
-  if (!audioCtx) return;
+  if (!audioCtx || state.muted) return;
   const t0 = audioCtx.currentTime + delay;
   const osc = audioCtx.createOscillator();
   const g = audioCtx.createGain();
@@ -405,10 +536,11 @@ function updateHighScore() {
   return true;
 }
 
-// Rice on the bottom, then toppings cycling upward.
-function ingredientAt(index) {
-  if (index === 0) return INGREDIENTS.rice;
-  return INGREDIENTS[TOPPINGS[(index - 1) % TOPPINGS.length]];
+// The ingredient for the next block: the game's base on the floor, otherwise a
+// random topping that differs from the one directly below.
+function nextIngredient() {
+  if (state.placed.length === 0) return state.baseIngredient;
+  return randomTopping(state.placed[state.placed.length - 1].ingredient);
 }
 
 // The surface the next ingredient must land on: the bowl floor for the first
@@ -528,6 +660,88 @@ function showStartScreen() {
   showScreen(screenStart);
 }
 
+// --- Combo counter, pause, mute ----------------------------------------
+
+function updateCombo() {
+  const show = state.running && !state.paused && state.combo >= 2;
+  comboEl.classList.toggle("hidden", !show);
+  if (show) {
+    comboCountEl.textContent = "x" + state.combo;
+    // restart the number pop and the ring burst
+    comboCountEl.classList.remove("pop");
+    comboEl.classList.remove("burst");
+    void comboEl.offsetWidth;
+    comboCountEl.classList.add("pop");
+    comboEl.classList.add("burst");
+  }
+}
+
+function updatePauseBtn() {
+  const manualPaused = state.running && state.paused && !screenPaused.classList.contains("hidden");
+  pauseBtn.textContent = manualPaused ? "▶ Resume" : "⏸ Pause";
+}
+
+function pauseGame() {
+  if (!state.running || state.paused) return;
+  state.paused = true;
+  overlay.classList.remove("hidden");
+  showScreen(screenPaused);
+  updatePauseBtn();
+  updateCombo();
+}
+
+function resumeFromPause() {
+  if (!state.paused) return;
+  state.paused = false;
+  overlay.classList.add("hidden");
+  state.lastTime = 0; // avoid a big dt jump on resume
+  updatePauseBtn();
+  updateCombo();
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+}
+
+function togglePause() {
+  if (!state.running) return;
+  if (state.paused) {
+    if (!screenPaused.classList.contains("hidden")) resumeFromPause(); // don't touch the reward pause
+  } else {
+    pauseGame();
+  }
+}
+
+function quitFromPause() {
+  state.paused = false;
+  state.running = false;
+  updatePauseBtn();
+  updateCombo();
+  showStartScreen();
+}
+
+const MUTE_KEY = "pokeworks-muted";
+
+function updateMuteBtn() {
+  muteBtn.textContent = state.muted ? "🔇 Muted" : "🔊 Sound";
+}
+
+function loadMute() {
+  try {
+    state.muted = localStorage.getItem(MUTE_KEY) === "1";
+  } catch (e) {
+    state.muted = false;
+  }
+  updateMuteBtn();
+}
+
+function toggleMute() {
+  state.muted = !state.muted;
+  try {
+    localStorage.setItem(MUTE_KEY, state.muted ? "1" : "0");
+  } catch (e) {
+    /* ignore */
+  }
+  updateMuteBtn();
+}
+
 // --- Game lifecycle -----------------------------------------------------
 
 function spawnActive() {
@@ -538,7 +752,7 @@ function spawnActive() {
     const cfg = DIFFICULTY[state.difficulty] || DIFFICULTY.medium;
     if (cfg.startWidth) width = Math.min(width, cfg.startWidth);
   }
-  const ingredient = ingredientAt(state.placed.length);
+  const ingredient = nextIngredient();
   state.active = {
     x: slideBounds().min,
     width,
@@ -555,10 +769,14 @@ function startGame(difficulty) {
   state.rewarded = false;
   state.difficulty = difficulty;
   setScore(0);
+  state.combo = 0;
+  updateCombo();
+  updatePauseBtn();
 
   state.placed = [];
   state.particles = [];
   state.shards = [];
+  state.baseIngredient = randomFrom(BASES);
   state.cam = { scale: ZOOM_IN, focusWorldY: BOWL_CENTER_Y, focusScreenY: H * 0.5 };
   spawnActive();
   clearConfetti();
@@ -592,6 +810,9 @@ function pickQuip(score, isNewBest) {
 
 function endGame() {
   state.running = false;
+  state.combo = 0;
+  updateCombo();
+  updatePauseBtn();
 
   const isNewBest = updateHighScore();
 
@@ -633,6 +854,8 @@ function dropActive() {
   }
 
   const perfect = overlap >= below.width - PERFECT_TOLERANCE;
+  state.combo = perfect ? state.combo + 1 : 0;
+  updateCombo();
 
   state.placed.push({
     x: overlapLeft,
@@ -1000,7 +1223,7 @@ function spawnConfetti(n, fromTop = true) {
 }
 
 function updateConfetti(dt) {
-  if (state.paused && confetti.length < 240) spawnConfetti(4); // keep it going while shown
+  if (state.rewardShowing && confetti.length < 240) spawnConfetti(4); // keep it going while shown
   for (let i = confetti.length - 1; i >= 0; i--) {
     const c = confetti[i];
     c.sway += dt * 4;
@@ -1038,14 +1261,14 @@ function playReward() {
 function triggerReward(cfg) {
   render(); // capture the just-completed bowl as the frozen backdrop
   state.paused = true;
+  state.rewardShowing = true;
   rewardSubtitle.textContent = `You reached ${cfg.reward} — here's ${cfg.discount}% off your next bowl.`;
   rewardCode.textContent = `POKEREWARDS${cfg.reward}`;
   spawnConfetti(200, false); // seed across the whole box so it's full immediately
   playReward();
-  screenStart.classList.add("hidden");
-  screenDifficulty.classList.add("hidden");
-  screenReward.classList.remove("hidden");
+  showScreen(screenReward);
   overlay.classList.remove("hidden");
+  updateCombo();
   lockScreenActions();
 }
 
@@ -1066,7 +1289,7 @@ function frame(timestamp) {
     renderMenu();
   }
 
-  if (state.paused) {
+  if (state.rewardShowing) {
     updateConfetti(dt);
     renderConfetti();
   }
@@ -1098,13 +1321,28 @@ quitBtn.addEventListener("click", () => {
 rewardBtn.addEventListener("click", () => {
   if (screenActionsLocked()) return;
   state.paused = false;
+  state.rewardShowing = false;
   overlay.classList.add("hidden");
   clearConfetti();
+  updateCombo();
   state.lastTime = 0; // avoid a big dt jump on resume
   if (document.activeElement && document.activeElement.blur) {
     document.activeElement.blur();
   }
 });
+
+// Order Now — don't fire on a stray rapid click while the screen is locking.
+orderBtn.addEventListener("click", (e) => {
+  if (screenActionsLocked()) e.preventDefault();
+});
+
+// Pause / resume via the button below the box.
+pauseBtn.addEventListener("click", togglePause);
+resumeBtn.addEventListener("click", resumeFromPause);
+pauseQuitBtn.addEventListener("click", quitFromPause);
+
+// Mute toggle.
+muteBtn.addEventListener("click", toggleMute);
 
 canvas.addEventListener("pointerdown", dropActive);
 window.addEventListener("keydown", (e) => {
@@ -1115,5 +1353,6 @@ window.addEventListener("keydown", (e) => {
 });
 
 loadHighScore();
+loadMute();
 buildMenuRows();
 requestAnimationFrame(frame);

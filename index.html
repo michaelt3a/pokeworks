@@ -29,6 +29,9 @@
       <!-- Gameplay will be rendered here -->
       <canvas id="game" class="game-canvas" width="800" height="600"></canvas>
 
+      <!-- Perfect-drop combo counter (top-right of the box) -->
+      <div id="combo" class="combo hidden"><span id="combo-count">x2</span></div>
+
       <!-- Start overlay -->
       <div id="overlay" class="overlay">
         <!-- Start screen -->
@@ -54,7 +57,19 @@
           <h1 class="overlay-title">Congrats!</h1>
           <p class="overlay-subtitle">You reached 30 — here's 5% off your next bowl.</p>
           <div class="reward-code">POKEREWARDS30</div>
-          <button id="reward-btn" class="btn" type="button">Keep Playing</button>
+          <div class="reward-actions">
+            <a id="order-btn" class="btn" href="https://order.thanx.com/pokeworks" target="_blank" rel="noopener noreferrer">Order Now</a>
+            <button id="reward-btn" class="btn btn-secondary" type="button">Keep Playing</button>
+          </div>
+        </div>
+
+        <!-- Paused screen -->
+        <div id="screen-paused" class="overlay-panel hidden">
+          <h1 class="overlay-title">Paused</h1>
+          <div class="gameover-actions">
+            <button id="resume-btn" class="btn" type="button">Resume</button>
+            <button id="pause-quit-btn" class="btn btn-secondary" type="button">Quit</button>
+          </div>
         </div>
 
         <!-- Game over screen -->
@@ -72,6 +87,12 @@
       <!-- Confetti overlay (in front, non-interactive) -->
       <canvas id="confetti" class="confetti" width="800" height="600"></canvas>
     </main>
+
+    <!-- Controls below the box -->
+    <div class="controls">
+      <button id="pause-btn" class="control-btn" type="button">⏸ Pause</button>
+      <button id="mute-btn" class="control-btn" type="button">🔊 Sound</button>
+    </div>
   </div>
 
   <script src="script.js"></script>
