@@ -1201,7 +1201,7 @@ function renderMenu() {
 
 // --- Reward + confetti --------------------------------------------------
 
-const CONFETTI_COLORS = ["#fd9f27", "#4caf72", "#e2574c", "#f5d64e", "#6cc0d6", "#ffffff", "#c98a5e"];
+const CONFETTI_COLORS = ["#ee435b", "#22b2b4", "#ffffff", "#f5a3ad", "#8fd6d7", "#f0637a", "#4fc3c4"];
 const confetti = [];
 
 // fromTop=true spawns just above the box (ongoing emission); fromTop=false
