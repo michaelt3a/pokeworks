@@ -31,6 +31,22 @@ body {
   padding: 1.5rem;
 }
 
+/* Back-to-hub link */
+.back-link {
+  position: absolute;
+  top: 16px;
+  left: 18px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  z-index: 40;
+}
+
+.back-link:hover {
+  color: var(--accent);
+}
+
 /* Overall game shell */
 .game-shell {
   width: 100%;
