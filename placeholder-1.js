@@ -99,8 +99,18 @@ const hintBtn = document.getElementById("hint-btn");
 const hintPop = document.getElementById("hint-pop");
 const hintCountEl = document.getElementById("hint-count");
 const checkBtn = document.getElementById("check-btn");
+const nextBowlBtn = document.getElementById("next-bowl-btn");
 const clearBtn = document.getElementById("clear-btn");
 const feedbackEl = document.getElementById("feedback");
+const srProgress = document.getElementById("sr-progress");
+const srTimer = document.getElementById("sr-timer");
+const speedrunBtn = document.getElementById("speedrun-btn");
+const resultsEl = document.getElementById("results");
+const resultsGrid = document.getElementById("results-grid");
+const resultsSummary = document.getElementById("results-summary");
+const resultsClose = document.getElementById("results-close");
+const resultsAgain = document.getElementById("results-again");
+const resultsMenu = document.getElementById("results-menu");
 const successEl = document.getElementById("success");
 const successSub = document.getElementById("success-sub");
 const nextBtn = document.getElementById("next-btn");
@@ -114,9 +124,21 @@ let activeTab = "Base";
 let selected = {}; // category -> Set of names
 let hintsUsed = 0; // hints revealed for the current bowl
 
+let mode = "practice"; // "practice" | "speedrun"
+let run = null;        // active speedrun: { order, index, results, startMs }
+let timerRAF = 0;
+
 function resetSelection() {
   selected = {};
   for (const c of CATEGORIES) selected[c] = new Set();
+}
+
+// A deep copy of a selection map (independent Sets) — used to snapshot a
+// finished speedrun bowl.
+function cloneSelection(s) {
+  const o = {};
+  for (const c of CATEGORIES) o[c] = new Set(s[c]);
+  return o;
 }
 
 // --- Ingredient morsels -------------------------------------------------
@@ -172,20 +194,25 @@ function rnd(n) {
   return s - Math.floor(s);
 }
 
-function mEll(rx, ry, stroke) { ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); if (stroke) ctx.stroke(); }
-function mRR(x, y, w, h, r, stroke) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill(); if (stroke) ctx.stroke(); }
-function mCirc(rad, stroke) { ctx.beginPath(); ctx.arc(0, 0, rad, 0, Math.PI * 2); ctx.fill(); if (stroke) ctx.stroke(); }
-function mRing(rad) { ctx.beginPath(); ctx.arc(0, 0, rad, 0, Math.PI * 2); ctx.stroke(); }
+// All bowl drawing routes through the module-level `g` context so the same
+// routines can render the live bowl (main canvas) or a result thumbnail
+// (an offscreen canvas). drawBowl() swaps `g` for the duration of a call.
+let g = ctx;
+
+function mEll(rx, ry, stroke) { g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2); g.fill(); if (stroke) g.stroke(); }
+function mRR(x, y, w, h, r, stroke) { g.beginPath(); g.roundRect(x, y, w, h, r); g.fill(); if (stroke) g.stroke(); }
+function mCirc(rad, stroke) { g.beginPath(); g.arc(0, 0, rad, 0, Math.PI * 2); g.fill(); if (stroke) g.stroke(); }
+function mRing(rad) { g.beginPath(); g.arc(0, 0, rad, 0, Math.PI * 2); g.stroke(); }
 
 function drawMorsel(x, y, sz, name, seed) {
   const st = STYLE[name] || { c: ["#cfc6b0"], kind: "cube" };
   const col = st.c[seed % st.c.length];
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate((rnd(seed * 1.3) - 0.5) * 1.7);
-  ctx.fillStyle = col;
-  ctx.strokeStyle = "rgba(0,0,0,0.14)";
-  ctx.lineWidth = 0.8;
+  g.save();
+  g.translate(x, y);
+  g.rotate((rnd(seed * 1.3) - 0.5) * 1.7);
+  g.fillStyle = col;
+  g.strokeStyle = "rgba(0,0,0,0.14)";
+  g.lineWidth = 0.8;
   switch (st.kind) {
     case "grain": mEll(sz * 0.95, sz * 0.4, true); break;
     case "cube": mRR(-sz * 0.75, -sz * 0.75, sz * 1.5, sz * 1.5, 2.5, true); break;
@@ -193,20 +220,20 @@ function drawMorsel(x, y, sz, name, seed) {
     case "chunk": mRR(-sz * 0.75, -sz * 0.6, sz * 1.5, sz * 1.2, 2.5, true); break;
     case "slice":
       mCirc(sz * 0.85, false);
-      ctx.strokeStyle = "rgba(60,90,40,0.5)"; ctx.lineWidth = 1.6; mRing(sz * 0.85);
+      g.strokeStyle = "rgba(60,90,40,0.5)"; g.lineWidth = 1.6; mRing(sz * 0.85);
       break;
     case "ring":
-      ctx.strokeStyle = col; ctx.lineWidth = Math.max(1.8, sz * 0.42); mRing(sz * 0.72);
+      g.strokeStyle = col; g.lineWidth = Math.max(1.8, sz * 0.42); mRing(sz * 0.72);
       break;
     case "strand": mRR(-sz * 1.25, -sz * 0.22, sz * 2.5, sz * 0.44, sz * 0.22, false); break;
     case "shred": mRR(-sz * 1.35, -sz * 0.16, sz * 2.7, sz * 0.32, sz * 0.16, false); break;
     case "leaf": mEll(sz * 0.95, sz * 0.5, true); break;
     case "crisp": mRR(-sz * 0.7, -sz * 0.55, sz * 1.4, sz * 1.1, 1.5, true); break;
     case "tiny": case "fleck": mCirc(sz * 0.42, false); break;
-    case "drizzle": ctx.globalAlpha = 0.6; mEll(sz * 0.7, sz * 0.5, false); break;
+    case "drizzle": g.globalAlpha = 0.6; mEll(sz * 0.7, sz * 0.5, false); break;
     default: mCirc(sz * 0.6, true);
   }
-  ctx.restore();
+  g.restore();
 }
 
 // A full bed of the base (rice / salad) covering the whole opening.
@@ -215,10 +242,10 @@ function drawBed(cx, rimY, innerRx, innerRy, baseName) {
   const isSalad = baseName === "Salad Mix";
 
   // Solid base for depth so gaps between morsels don't show the bowl.
-  ctx.fillStyle = isSalad ? "#356e2f" : "#e6d9bf";
-  ctx.beginPath();
-  ctx.ellipse(cx, rimY, innerRx - 5, innerRy - 2, 0, 0, Math.PI * 2);
-  ctx.fill();
+  g.fillStyle = isSalad ? "#356e2f" : "#e6d9bf";
+  g.beginPath();
+  g.ellipse(cx, rimY, innerRx - 5, innerRy - 2, 0, 0, Math.PI * 2);
+  g.fill();
 
   // Dense grains (rice) or overlapping leaves (salad) covering the bed.
   const n = isSalad ? 320 : 680;
@@ -236,32 +263,32 @@ function drawBed(cx, rimY, innerRx, innerRy, baseName) {
 
 // Wavy sauce drizzle over the top of the pile.
 function drawDrizzle(cx, rimY, sauces) {
-  ctx.save();
-  ctx.lineCap = "round";
-  ctx.globalAlpha = 0.55;
+  g.save();
+  g.lineCap = "round";
+  g.globalAlpha = 0.55;
   sauces.forEach((name, si) => {
     const st = STYLE[name] || { c: ["#8a5a2b"] };
-    ctx.strokeStyle = st.c[0];
-    ctx.lineWidth = 2.6;
+    g.strokeStyle = st.c[0];
+    g.lineWidth = 2.6;
     for (let k = 0; k < 3; k++) {
       const yy = rimY - 8 + si * 5 + k * 6;
-      ctx.beginPath();
+      g.beginPath();
       for (let x = -58; x <= 58; x += 7) {
         const px = cx + x + (si * 12 - 10);
         const py = yy + Math.sin((x + si * 22 + k * 9) * 0.13) * 4;
-        if (x === -58) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
+        if (x === -58) g.moveTo(px, py);
+        else g.lineTo(px, py);
       }
-      ctx.stroke();
+      g.stroke();
     }
   });
-  ctx.restore();
+  g.restore();
 }
 
 // Fill the bowl: a base bed, the proteins/mix-ins/toppings mounded on top,
-// then a sauce drizzle.
-function drawFill(cx, rimY, innerRx, innerRy) {
-  const baseName = [...selected["Base"]][0];
+// then a sauce drizzle. `sel` is a selection map (category -> Set of names).
+function drawFill(cx, rimY, innerRx, innerRy, sel) {
+  const baseName = [...sel["Base"]][0];
   if (baseName) drawBed(cx, rimY, innerRx, innerRy, baseName);
 
   // Realistic amounts + sizes per category, spread across the whole bowl.
@@ -269,7 +296,7 @@ function drawFill(cx, rimY, innerRx, innerRy) {
   const SIZE = { "Protein": 9, "Mix-ins": 7.5, "Toppings": 6 };
   const specs = [];
   for (const cat of ["Protein", "Mix-ins", "Toppings"]) {
-    for (const name of selected[cat]) {
+    for (const name of sel[cat]) {
       for (let k = 0; k < AMOUNT[cat]; k++) {
         specs.push({ name, size: SIZE[cat], key: rnd(specs.length * 1.7 + 0.3) });
       }
@@ -290,14 +317,17 @@ function drawFill(cx, rimY, innerRx, innerRy) {
   morsels.sort((a, b) => a.py - b.py); // back-to-front
   for (const m of morsels) drawMorsel(m.px, m.py, m.size, m.name, m.seed);
 
-  const sauces = [...selected["Sauce"]];
+  const sauces = [...sel["Sauce"]];
   if (sauces.length) drawDrizzle(cx, rimY, sauces);
 }
 
 // --- Bowl drawing -------------------------------------------------------
 
-function drawBowl() {
-  ctx.clearRect(0, 0, W, H);
+// Render a bowl of `sel` (default: the live selection) into `context`
+// (default: the main canvas context).
+function drawBowl(context = ctx, sel = selected) {
+  g = context;
+  g.clearRect(0, 0, W, H);
   const cx = W / 2;
   const rimY = 138;
   const rimRx = 226;
@@ -307,60 +337,60 @@ function drawBowl() {
   const bottomY = 300;
 
   // Ground shadow.
-  ctx.fillStyle = "rgba(0,0,0,0.1)";
-  ctx.beginPath();
-  ctx.ellipse(cx, bottomY + 12, rimRx * 0.8, 13, 0, 0, Math.PI * 2);
-  ctx.fill();
+  g.fillStyle = "rgba(0,0,0,0.1)";
+  g.beginPath();
+  g.ellipse(cx, bottomY + 12, rimRx * 0.8, 13, 0, 0, Math.PI * 2);
+  g.fill();
 
   // Body.
-  ctx.beginPath();
-  ctx.moveTo(cx - rimRx, rimY);
-  ctx.bezierCurveTo(cx - rimRx, rimY + 95, cx - 80, bottomY, cx, bottomY);
-  ctx.bezierCurveTo(cx + 80, bottomY, cx + rimRx, rimY + 95, cx + rimRx, rimY);
-  ctx.ellipse(cx, rimY, rimRx, rimRy, 0, 0, Math.PI, false);
-  ctx.closePath();
-  const body = ctx.createLinearGradient(0, rimY - rimRy, 0, bottomY);
+  g.beginPath();
+  g.moveTo(cx - rimRx, rimY);
+  g.bezierCurveTo(cx - rimRx, rimY + 95, cx - 80, bottomY, cx, bottomY);
+  g.bezierCurveTo(cx + 80, bottomY, cx + rimRx, rimY + 95, cx + rimRx, rimY);
+  g.ellipse(cx, rimY, rimRx, rimRy, 0, 0, Math.PI, false);
+  g.closePath();
+  const body = g.createLinearGradient(0, rimY - rimRy, 0, bottomY);
   body.addColorStop(0, "#fbf6ec");
   body.addColorStop(1, "#e2d4bc");
-  ctx.fillStyle = body;
-  ctx.fill();
-  ctx.strokeStyle = "rgba(120,95,55,0.25)";
-  ctx.lineWidth = 2;
-  ctx.stroke();
+  g.fillStyle = body;
+  g.fill();
+  g.strokeStyle = "rgba(120,95,55,0.25)";
+  g.lineWidth = 2;
+  g.stroke();
 
   // Interior.
-  ctx.beginPath();
-  ctx.ellipse(cx, rimY, innerRx, innerRy, 0, 0, Math.PI * 2);
-  const inside = ctx.createRadialGradient(cx, rimY - 12, 10, cx, rimY + 8, innerRx);
+  g.beginPath();
+  g.ellipse(cx, rimY, innerRx, innerRy, 0, 0, Math.PI * 2);
+  const inside = g.createRadialGradient(cx, rimY - 12, 10, cx, rimY + 8, innerRx);
   inside.addColorStop(0, "#e3d4b6");
   inside.addColorStop(1, "#bfa984");
-  ctx.fillStyle = inside;
-  ctx.fill();
+  g.fillStyle = inside;
+  g.fill();
 
   // Ingredients piled into the bowl.
-  ctx.save();
-  ctx.beginPath();
-  ctx.ellipse(cx, rimY - 4, innerRx - 4, innerRy + 20, 0, 0, Math.PI * 2);
-  ctx.clip();
-  drawFill(cx, rimY, innerRx, innerRy);
-  ctx.restore();
+  g.save();
+  g.beginPath();
+  g.ellipse(cx, rimY - 4, innerRx - 4, innerRy + 20, 0, 0, Math.PI * 2);
+  g.clip();
+  drawFill(cx, rimY, innerRx, innerRy, sel);
+  g.restore();
 
   // Back-inside shadow + front lip.
-  ctx.beginPath();
-  ctx.ellipse(cx, rimY, innerRx, innerRy, 0, Math.PI, Math.PI * 2, false);
-  ctx.strokeStyle = "rgba(85,65,38,0.2)";
-  ctx.lineWidth = 6;
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.ellipse(cx, rimY, innerRx, innerRy, 0, 0, Math.PI, false);
-  ctx.strokeStyle = "rgba(255,255,255,0.6)";
-  ctx.lineWidth = 2.5;
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.ellipse(cx, rimY, rimRx, rimRy, 0, 0, Math.PI * 2);
-  ctx.strokeStyle = "rgba(120,95,55,0.22)";
-  ctx.lineWidth = 2;
-  ctx.stroke();
+  g.beginPath();
+  g.ellipse(cx, rimY, innerRx, innerRy, 0, Math.PI, Math.PI * 2, false);
+  g.strokeStyle = "rgba(85,65,38,0.2)";
+  g.lineWidth = 6;
+  g.stroke();
+  g.beginPath();
+  g.ellipse(cx, rimY, innerRx, innerRy, 0, 0, Math.PI, false);
+  g.strokeStyle = "rgba(255,255,255,0.6)";
+  g.lineWidth = 2.5;
+  g.stroke();
+  g.beginPath();
+  g.ellipse(cx, rimY, rimRx, rimRy, 0, 0, Math.PI * 2);
+  g.strokeStyle = "rgba(120,95,55,0.22)";
+  g.lineWidth = 2;
+  g.stroke();
 }
 
 // Flat list of selected {category, name}.
@@ -483,6 +513,9 @@ function clearFeedback() {
 }
 
 function selectRecipe(recipe) {
+  stopTimer();
+  run = null;
+  setMode("practice");
   currentRecipe = recipe;
   resetSelection();
   activeTab = "Base";
@@ -638,7 +671,190 @@ function runConfetti() {
   confettiRAF = requestAnimationFrame(step);
 }
 
+// --- Speedrun mode ------------------------------------------------------
+
+const BEST_KEY = "sigworks_speedrun_best";
+
+function loadBest() {
+  try { return JSON.parse(localStorage.getItem(BEST_KEY)); } catch { return null; }
+}
+function saveBest(v) {
+  try { localStorage.setItem(BEST_KEY, JSON.stringify(v)); } catch { /* ignore */ }
+}
+
+// Fisher–Yates shuffle (a fresh order each run).
+function shuffled(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function fmtTime(ms) {
+  const t = Math.max(0, ms);
+  const m = Math.floor(t / 60000);
+  const s = Math.floor((t % 60000) / 1000);
+  const d = Math.floor((t % 1000) / 100);
+  return `${m}:${String(s).padStart(2, "0")}.${d}`;
+}
+
+// Show/hide the controls that differ between the two modes.
+function setMode(m) {
+  mode = m;
+  const speed = m === "speedrun";
+  hintBtn.hidden = speed;       // no hints in a speedrun
+  checkBtn.hidden = speed;      // no checking either
+  nextBowlBtn.hidden = !speed;
+  srProgress.hidden = !speed;
+  srTimer.hidden = !speed;
+  if (speed) changeBtn.hidden = true;
+  hintPop.classList.add("hidden");
+}
+
+function startTimer() {
+  cancelAnimationFrame(timerRAF);
+  const tick = () => {
+    if (!run) return;
+    srTimer.textContent = fmtTime(performance.now() - run.startMs);
+    timerRAF = requestAnimationFrame(tick);
+  };
+  timerRAF = requestAnimationFrame(tick);
+}
+function stopTimer() {
+  cancelAnimationFrame(timerRAF);
+}
+
+function startSpeedrun() {
+  run = { order: shuffled(RECIPES), index: 0, results: [], startMs: performance.now() };
+  setMode("speedrun");
+  overlay.classList.add("hidden");
+  resultsEl.classList.add("hidden");
+  successEl.classList.add("hidden");
+  builder.hidden = false;
+  loadRunBowl();
+  startTimer();
+}
+
+function loadRunBowl() {
+  currentRecipe = run.order[run.index];
+  resetSelection();
+  activeTab = "Base";
+  recipeNameEl.textContent = currentRecipe.name;
+  changeBtn.hidden = true;
+  srProgress.textContent = `Bowl ${run.index + 1} / ${run.order.length}`;
+  const last = run.index === run.order.length - 1;
+  nextBowlBtn.textContent = last ? "Finish ✓" : "Next Bowl →";
+  feedbackEl.textContent = "Build it from memory";
+  feedbackEl.className = "feedback";
+  refresh();
+}
+
+// Lock in the current bowl and move on (or finish the run).
+function nextRunBowl() {
+  if (!run) return;
+  run.results.push({ recipe: currentRecipe, sel: cloneSelection(selected) });
+  if (run.index >= run.order.length - 1) {
+    finishSpeedrun();
+    return;
+  }
+  run.index++;
+  loadRunBowl();
+}
+
+// What the player got right / missed / wrong for one category.
+function diffCategory(sel, want) {
+  const selArr = [...sel];
+  return {
+    ok: selArr.filter((n) => want.includes(n)),
+    bad: selArr.filter((n) => !want.includes(n)),
+    miss: want.filter((n) => !sel.has(n)),
+  };
+}
+
+function finishSpeedrun() {
+  stopTimer();
+  const totalMs = performance.now() - run.startMs;
+  let perfect = 0;
+  for (const r of run.results) {
+    let groups = 0;
+    for (const c of CATEGORIES) if (setsEqual(r.sel[c], r.recipe.items[c])) groups++;
+    r.groups = groups;
+    r.perfect = groups === CATEGORIES.length;
+    if (r.perfect) perfect++;
+  }
+  renderResults(perfect, totalMs);
+  resultsEl.classList.remove("hidden");
+}
+
+function renderResults(perfect, totalMs) {
+  const N = run.results.length;
+  let summary = `<strong>${perfect} / ${N}</strong> bowls perfect &middot; <strong>${fmtTime(totalMs)}</strong>`;
+
+  const best = loadBest();
+  const isBest = !best || perfect > best.perfect || (perfect === best.perfect && totalMs < best.ms);
+  if (isBest) {
+    saveBest({ perfect, ms: totalMs });
+    summary += ` &middot; <span class="rbest">★ New best!</span>`;
+  } else if (best) {
+    summary += ` &middot; Best: ${best.perfect}/${N} in ${fmtTime(best.ms)}`;
+  }
+  resultsSummary.innerHTML = summary;
+
+  resultsGrid.innerHTML = "";
+  for (const r of run.results) {
+    const card = document.createElement("div");
+    card.className = "rcard" + (r.perfect ? " perfect" : "");
+
+    const cv = document.createElement("canvas");
+    cv.className = "rcard-bowl";
+    cv.width = W;
+    cv.height = H;
+    card.appendChild(cv);
+    drawBowl(cv.getContext("2d"), r.sel);
+
+    const head = document.createElement("div");
+    head.className = "rcard-head";
+    head.innerHTML =
+      `<span class="rcard-name">${r.recipe.name}</span>` +
+      `<span class="rcard-badge ${r.perfect ? "ok" : "bad"}">` +
+      `${r.perfect ? "Perfect" : r.groups + " / " + CATEGORIES.length}</span>`;
+    card.appendChild(head);
+
+    const diff = document.createElement("div");
+    diff.className = "rcard-diff";
+    for (const c of CATEGORIES) {
+      const { ok, bad, miss } = diffCategory(r.sel[c], r.recipe.items[c]);
+      let pills = "";
+      for (const n of ok) pills += `<span class="rp ok">✓ ${n}</span>`;
+      for (const n of miss) pills += `<span class="rp miss">＋ ${n}</span>`;
+      for (const n of bad) pills += `<span class="rp bad">✕ ${n}</span>`;
+      const row = document.createElement("div");
+      row.className = "rrow";
+      row.innerHTML =
+        `<span class="rrow-cat" style="--cat:${CATEGORY_COLOR[c]}">${c}</span>` +
+        `<span class="rrow-pills">${pills}</span>`;
+      diff.appendChild(row);
+    }
+    card.appendChild(diff);
+    resultsGrid.appendChild(card);
+  }
+}
+
 // --- Wiring -------------------------------------------------------------
+
+speedrunBtn.addEventListener("click", startSpeedrun);
+nextBowlBtn.addEventListener("click", nextRunBowl);
+resultsAgain.addEventListener("click", startSpeedrun);
+resultsMenu.addEventListener("click", () => {
+  stopTimer();
+  run = null;
+  resultsEl.classList.add("hidden");
+  setMode("practice");
+  openSelect();
+});
+resultsClose.addEventListener("click", () => resultsEl.classList.add("hidden"));
 
 changeBtn.addEventListener("click", openSelect);
 nextBtn.addEventListener("click", openSelect);
