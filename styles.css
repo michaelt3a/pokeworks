@@ -175,6 +175,35 @@ body {
   justify-content: safe center;
 }
 
+/* "Scroll to claim" cue — pinned to the bottom of the box, shown only when the
+   reward card overflows and hasn't been scrolled to the end (toggled in JS). */
+.scroll-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 5;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 0.4rem 0.95rem;
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  white-space: nowrap;
+  animation: scroll-hint-bounce 1.3s ease-in-out infinite;
+}
+
+.scroll-hint.hidden {
+  display: none;
+}
+
+@keyframes scroll-hint-bounce {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, 5px); }
+}
+
 .overlay-title {
   font-size: clamp(1.75rem, 5vw, 2.75rem);
   margin: 0 0 0.5rem;

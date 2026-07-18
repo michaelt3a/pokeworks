@@ -30,6 +30,7 @@ const screenReward = document.getElementById("screen-reward");
 const screenGameover = document.getElementById("screen-gameover");
 const screenPaused = document.getElementById("screen-paused");
 const rewardBtn = document.getElementById("reward-btn");
+const scrollHint = document.getElementById("scroll-hint");
 const orderBtn = document.getElementById("order-btn");
 const playAgainBtn = document.getElementById("play-again-btn");
 const quitBtn = document.getElementById("quit-btn");
@@ -48,6 +49,20 @@ const overlayScreens = [screenStart, screenDifficulty, screenReward, screenGameo
 // Show a single overlay panel and hide the rest.
 function showScreen(el) {
   for (const s of overlayScreens) s.classList.toggle("hidden", s !== el);
+  if (el !== screenReward) scrollHint.classList.add("hidden");
+}
+
+// Show the "Scroll to claim" cue only while the reward card overflows the box
+// and hasn't been scrolled to the bottom yet.
+function updateScrollHint() {
+  if (!state.rewardShowing) {
+    scrollHint.classList.add("hidden");
+    return;
+  }
+  const overflowing = screenReward.scrollHeight - screenReward.clientHeight > 4;
+  const atBottom =
+    screenReward.scrollTop >= screenReward.scrollHeight - screenReward.clientHeight - 8;
+  scrollHint.classList.toggle("hidden", !overflowing || atBottom);
 }
 
 // Briefly ignore overlay-button clicks after a screen appears, so a rapid
@@ -1278,6 +1293,9 @@ function triggerReward(cfg) {
   overlay.classList.remove("hidden");
   updateCombo();
   lockScreenActions();
+  screenReward.scrollTop = 0; // start at the top so the cue makes sense
+  updateScrollHint(); // measure now (reading scrollHeight forces a reflow)
+  requestAnimationFrame(updateScrollHint); // and again after layout settles
 }
 
 function frame(timestamp) {
@@ -1325,11 +1343,15 @@ quitBtn.addEventListener("click", () => {
   showStartScreen();
 });
 
+// Hide the scroll cue as soon as the reward card is scrolled toward the bottom.
+screenReward.addEventListener("scroll", updateScrollHint);
+
 // Resume play after the reward screen.
 rewardBtn.addEventListener("click", () => {
   if (screenActionsLocked()) return;
   state.paused = false;
   state.rewardShowing = false;
+  scrollHint.classList.add("hidden");
   overlay.classList.add("hidden");
   clearConfetti();
   updateCombo();
