@@ -312,6 +312,21 @@
   80% { transform: translateX(3px); }
 }
 
+/* Recipe-select overlay: on short/mobile screens the recipe list is taller
+   than the fixed-height game box. Let the overlay scroll and the panel take
+   its natural height, so the top title and bottom recipes aren't clipped.
+   Scoped to .builder-shell so the Bowl Builder's stacked overlays and the
+   during-play view are unaffected (the overlay stays out of flow when hidden). */
+.builder-shell .overlay {
+  overflow-y: auto;
+}
+
+.builder-shell .overlay-panel {
+  position: relative;
+  inset: auto;
+  min-height: 100%;
+}
+
 /* Recipe selection grid (overlay from styles.css) */
 .recipe-grid {
   display: grid;
