@@ -166,6 +166,15 @@ body {
   pointer-events: none;
 }
 
+/* On short screens (mobile) the reward / game-over panels can be taller than
+   the stage box, which clips them (they're centered in a fixed 4/3 area).
+   Let each screen scroll and fall back to top-alignment when it overflows so
+   nothing is cut off. Panels stay absolute so they still cross-fade. */
+.stage .overlay-panel {
+  overflow-y: auto;
+  justify-content: safe center;
+}
+
 .overlay-title {
   font-size: clamp(1.75rem, 5vw, 2.75rem);
   margin: 0 0 0.5rem;
