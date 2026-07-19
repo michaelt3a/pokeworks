@@ -436,12 +436,16 @@ body {
 
 /* Page transitions */
 .page-content {
-  animation: page-enter 0.4s ease both;
+  /* `backwards` (not `both`) so the entrance still fades in with no flash,
+     but the element does NOT retain a transform afterward. A retained
+     transform pins .page-content into a GPU layer, which on iOS stops the
+     game canvas inside it from repainting until you tap. */
+  animation: page-enter 0.4s ease backwards;
 }
 
 @keyframes page-enter {
   from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: none; }
 }
 
 body.page-out .page-content {
