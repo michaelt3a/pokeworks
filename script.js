@@ -1587,31 +1587,45 @@ function drawBestLine() {
   ctx.restore();
 }
 
-// A little flag planted on the tower every 10 blocks.
+// A little flag planted sideways into the block every 10 blocks: the pole
+// sticks straight out of the block's side face, banner hanging from the tip.
 function drawFlags() {
   for (let m = 10; m <= state.placed.length; m += 10) {
     const b = state.placed[m - 1];
     if (!b) continue;
     const y = worldTopForIndex(m - 1) + BLOCK_H * 0.5;
-    const px = b.x + b.width + 6;
+    const baseX = b.x + b.width - 3; // embedded a few px into the block
+    const tipX = b.x + b.width + 26;
+
+    // pole (horizontal, stuck into the side)
     ctx.strokeStyle = "#7a5b32";
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 3.5;
     ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(px, y + 12);
-    ctx.lineTo(px, y - 18);
+    ctx.moveTo(baseX, y);
+    ctx.lineTo(tipX, y);
     ctx.stroke();
+    // pole cap
+    ctx.fillStyle = "#5d4426";
+    ctx.beginPath();
+    ctx.arc(tipX, y, 2.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // banner hanging from the outer half of the pole
     ctx.fillStyle = m % 20 === 0 ? "#fd9f27" : "#22b2b4";
     ctx.beginPath();
-    ctx.moveTo(px, y - 18);
-    ctx.lineTo(px + 22, y - 12.5);
-    ctx.lineTo(px, y - 7);
+    ctx.moveTo(tipX - 19, y + 2);
+    ctx.lineTo(tipX - 1, y + 2);
+    ctx.lineTo(tipX - 1, y + 19);
+    ctx.lineTo(tipX - 10, y + 14);
+    ctx.lineTo(tipX - 19, y + 19);
     ctx.closePath();
     ctx.fill();
+
     ctx.fillStyle = "#fff";
     ctx.font = "800 9px system-ui, sans-serif";
-    ctx.textAlign = "left";
-    ctx.fillText(String(m), px + 3, y - 9.5);
+    ctx.textAlign = "center";
+    ctx.fillText(String(m), tipX - 10, y + 12);
   }
 }
 
