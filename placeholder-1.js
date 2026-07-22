@@ -840,6 +840,8 @@ async function fetchSpeedrunTop() {
 }
 
 async function submitSpeedrun(name, perfect, ms) {
+  perfect = Math.round(perfect);
+  ms = Math.round(ms); // int column — never send a fractional millisecond
   addLocalRun(name, perfect, ms); // local mirror
   if (!useSupabase) return;
   const res = await fetch(SB.url + "/rest/v1/sigworks_speedruns", {
@@ -1022,8 +1024,9 @@ function finishSpeedrun() {
   renderResults(perfect, totalMs);
   resultsEl.classList.remove("hidden");
 
-  // Offer to add this run to the global leaderboard.
-  srPendingRun = { perfect: perfect, ms: totalMs };
+  // Offer to add this run to the global leaderboard. Round the time — the DB
+  // stores whole milliseconds (an int column).
+  srPendingRun = { perfect: perfect, ms: Math.round(totalMs) };
   srLbNewName = null;
   if (srLbNameInput) srLbNameInput.value = loadLbName();
   if (srLbEntry) srLbEntry.classList.remove("hidden");
