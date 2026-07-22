@@ -50,6 +50,7 @@ const lbStartBtn = document.getElementById("lb-start-btn");
 const lbViewBtn = document.getElementById("lb-view-btn");
 const lbBackBtn = document.getElementById("lb-back-btn");
 const lbEntry = document.getElementById("lb-entry");
+const lbEntryMsg = lbEntry ? lbEntry.querySelector(".lb-entry-msg") : null;
 const lbNameInput = document.getElementById("lb-name");
 const lbSaveBtn = document.getElementById("lb-save-btn");
 const lbList = document.getElementById("lb-list");
@@ -700,7 +701,43 @@ const DIFF_LABEL = { easy: "Easy", medium: "Medium", impossible: "Impossible" };
 
 let lbReturnScreen = screenStart; // where "Back" goes
 let lbActiveTab = "easy";
-let lbNewEntry = null; // { diff, idx } — the row to highlight after a save
+let lbNewEntry = null; // { diff, name, score } — the row to highlight after a save
+
+// Supabase makes the board global (shared across players). Without valid config
+// it stays local-only (per browser). The anon key is public by design.
+const SB = window.POKEWORKS_SUPABASE || {};
+const useSupabase =
+  !!SB.url && !!SB.anonKey && !/YOUR_/.test(SB.url) && !/YOUR_/.test(SB.anonKey);
+
+function sbHeaders(extra) {
+  return Object.assign(
+    { apikey: SB.anonKey, Authorization: "Bearer " + SB.anonKey },
+    extra || {}
+  );
+}
+
+// Top scores for a difficulty from Supabase (falls back to the local board).
+async function fetchTopScores(diff) {
+  if (!useSupabase) return loadBoard()[diff] || [];
+  const url =
+    SB.url + "/rest/v1/bowl_scores?select=name,score&difficulty=eq." +
+    encodeURIComponent(diff) + "&order=score.desc&limit=" + LB_MAX;
+  const res = await fetch(url, { headers: sbHeaders() });
+  if (!res.ok) throw new Error("Supabase fetch " + res.status);
+  return await res.json();
+}
+
+// Insert a score to Supabase; always keep a local mirror as a fallback.
+async function submitScore(diff, name, score) {
+  addLeaderboardScore(diff, name, score); // local mirror
+  if (!useSupabase) return;
+  const res = await fetch(SB.url + "/rest/v1/bowl_scores", {
+    method: "POST",
+    headers: sbHeaders({ "Content-Type": "application/json", Prefer: "return=minimal" }),
+    body: JSON.stringify({ difficulty: diff, name: name, score: score }),
+  });
+  if (!res.ok) throw new Error("Supabase insert " + res.status);
+}
 
 function loadBoard() {
   try {
@@ -740,8 +777,17 @@ function setLbTab(diff) {
   renderLeaderboard();
 }
 
-function renderLeaderboard() {
-  const list = loadBoard()[lbActiveTab] || [];
+async function renderLeaderboard() {
+  const diff = lbActiveTab;
+  lbList.innerHTML = '<li class="lb-empty">Loading…</li>';
+  let list;
+  try {
+    list = await fetchTopScores(diff);
+  } catch (e) {
+    list = loadBoard()[diff] || []; // offline / error → local mirror
+  }
+  if (diff !== lbActiveTab) return; // tab changed while awaiting
+
   lbList.innerHTML = "";
   if (!list.length) {
     const li = document.createElement("li");
@@ -750,11 +796,14 @@ function renderLeaderboard() {
     lbList.appendChild(li);
     return;
   }
+  let highlighted = false;
   list.forEach((entry, i) => {
     const li = document.createElement("li");
     li.className = "lb-row";
-    if (lbNewEntry && lbNewEntry.diff === lbActiveTab && lbNewEntry.idx === i) {
+    if (!highlighted && lbNewEntry && lbNewEntry.diff === diff &&
+        lbNewEntry.name === entry.name && lbNewEntry.score === entry.score) {
       li.classList.add("lb-me");
+      highlighted = true;
     }
     li.innerHTML =
       `<span class="lb-rank">${i + 1}</span>` +
@@ -946,11 +995,18 @@ function endGame() {
   gameoverSubtitle.textContent =
     `You added ${state.score} ingredient${state.score === 1 ? "" : "s"}.`;
 
-  // Offer a leaderboard entry if the score is good enough for this difficulty.
+  // Offer a leaderboard entry. Global (Supabase) boards accept any positive
+  // score; a local-only board only offers when the score cracks the top 10.
   lbNewEntry = null;
-  if (scoreQualifies(state.difficulty, state.score)) {
+  const offer = state.score > 0 && (useSupabase || scoreQualifies(state.difficulty, state.score));
+  if (offer) {
     pendingScore = { diff: state.difficulty, score: state.score };
     lbNameInput.value = loadLbName();
+    if (lbEntryMsg) {
+      lbEntryMsg.textContent = useSupabase
+        ? "🏆 Add your score to the leaderboard!"
+        : "🏆 You made the leaderboard!";
+    }
     lbEntry.classList.remove("hidden");
   } else {
     pendingScore = null;
@@ -972,15 +1028,22 @@ function saveLbName(name) {
 }
 
 // Save the pending score under the typed name, then show the board.
-function submitLeaderboardName() {
+async function submitLeaderboardName() {
   if (!pendingScore) return;
   const name = (lbNameInput.value || "").trim().slice(0, 12) || "Anon";
   saveLbName(name);
-  const idx = addLeaderboardScore(pendingScore.diff, name, pendingScore.score);
-  lbNewEntry = { diff: pendingScore.diff, idx };
   const diff = pendingScore.diff;
+  const score = pendingScore.score;
   pendingScore = null;
   lbEntry.classList.add("hidden");
+  lbSaveBtn.disabled = true;
+  try {
+    await submitScore(diff, name, score);
+  } catch (e) {
+    /* local mirror already saved */
+  }
+  lbSaveBtn.disabled = false;
+  lbNewEntry = { diff: diff, name: name, score: score };
   openLeaderboard(screenGameover, diff);
 }
 
