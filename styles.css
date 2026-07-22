@@ -131,6 +131,62 @@ body {
   display: block;
   width: 100%;
   height: 100%;
+  /* Stop touch gestures (scroll/zoom) so taps to collect power-ups register cleanly on mobile. */
+  touch-action: none;
+}
+
+/* Slow-mo power-up indicator — pinned top-center of the box while active */
+.slowmo {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 16;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px 9px;
+  border-radius: 12px;
+  background: rgba(34, 178, 180, 0.16);
+  border: 1.5px solid var(--teal);
+  box-shadow: 0 2px 12px rgba(34, 178, 180, 0.35);
+  pointer-events: none;
+  animation: slowmo-pulse 1s ease-in-out infinite;
+}
+
+.slowmo.hidden {
+  display: none;
+}
+
+.slowmo-label {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: var(--teal-dark);
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.7);
+}
+
+.slowmo-track {
+  width: 96px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(27, 144, 146, 0.25);
+  overflow: hidden;
+}
+
+.slowmo-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--teal), #4fd4d6);
+  transition: width 0.1s linear;
+}
+
+@keyframes slowmo-pulse {
+  0%, 100% { box-shadow: 0 2px 12px rgba(34, 178, 180, 0.35); }
+  50% { box-shadow: 0 2px 20px rgba(34, 178, 180, 0.65); }
 }
 
 /* Overlay */

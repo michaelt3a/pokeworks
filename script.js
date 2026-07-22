@@ -467,6 +467,9 @@ const state = {
   active: null, // the moving ingredient: { x, width, color, dir }
   particles: [], // splash bits (world space)
   shards: [], // trimmed overhang tumbling away (world space)
+  powerups: [], // falling power-ups (screen/canvas space): { x, y, vy, age }
+  slowTimer: 0, // seconds of slow-mo remaining
+  powerSpawnTimer: 6, // seconds until the next power-up falls
   cam: { scale: ZOOM_IN, focusWorldY: BOWL_CENTER_Y, focusScreenY: H * 0.5 },
   lastTime: 0,
 };
@@ -795,6 +798,7 @@ function startGame(difficulty) {
   state.cam = { scale: ZOOM_IN, focusWorldY: BOWL_CENTER_Y, focusScreenY: H * 0.5 };
   spawnActive();
   clearConfetti();
+  clearPowerups();
 
   overlay.classList.add("hidden");
   if (document.activeElement && document.activeElement.blur) {
@@ -828,6 +832,7 @@ function endGame() {
   state.combo = 0;
   updateCombo();
   updatePauseBtn();
+  clearPowerups();
 
   const isNewBest = updateHighScore();
 
@@ -1298,6 +1303,143 @@ function triggerReward(cfg) {
   requestAnimationFrame(updateScrollHint); // and again after layout settles
 }
 
+// --- Power-ups ----------------------------------------------------------
+
+const POWERUP_R = 30; // radius (canvas space)
+const SLOW_FACTOR = 0.4; // game speed while slow-mo is active
+const SLOW_DURATION = 5; // seconds of slow-mo
+const POWERUP_FALL = 155; // fall speed (px/sec, canvas space)
+const POWER_SPAWN_MIN = 7;
+const POWER_SPAWN_MAX = 13;
+
+const slowmoEl = document.getElementById("slowmo");
+const slowmoFill = document.getElementById("slowmo-fill");
+
+function spawnPowerup() {
+  state.powerups.push({
+    x: 90 + Math.random() * (W - 180),
+    y: -POWERUP_R - 12,
+    vy: POWERUP_FALL,
+    age: 0,
+  });
+}
+
+// Falls in real time (not affected by slow-mo), so power-ups keep coming.
+function updatePowerups(dt) {
+  if (state.slowTimer > 0) state.slowTimer = Math.max(0, state.slowTimer - dt);
+
+  state.powerSpawnTimer -= dt;
+  if (state.powerSpawnTimer <= 0) {
+    spawnPowerup();
+    state.powerSpawnTimer = POWER_SPAWN_MIN + Math.random() * (POWER_SPAWN_MAX - POWER_SPAWN_MIN);
+  }
+
+  for (let i = state.powerups.length - 1; i >= 0; i--) {
+    const p = state.powerups[i];
+    p.age += dt;
+    p.y += p.vy * dt;
+    if (p.y > H + POWERUP_R + 12) state.powerups.splice(i, 1);
+  }
+}
+
+function drawStopwatch(x, y, r) {
+  ctx.save();
+  ctx.shadowColor = "rgba(34,178,180,0.85)";
+  ctx.shadowBlur = 18;
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.fillStyle = "#22b2b4"; // top button + stem
+  ctx.beginPath();
+  ctx.roundRect(x - 7, y - r - 11, 14, 9, 3);
+  ctx.fill();
+  ctx.fillRect(x - 3, y - r - 4, 6, 6);
+
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "#22b2b4";
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(31,43,43,0.5)";
+  ctx.lineWidth = 2;
+  for (let t = 0; t < 12; t++) {
+    const a = (t / 12) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(a) * (r - 6), y + Math.sin(a) * (r - 6));
+    ctx.lineTo(x + Math.cos(a) * (r - 2), y + Math.sin(a) * (r - 2));
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = "#1f2b2b";
+  ctx.lineCap = "round";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x, y - r * 0.55);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + r * 0.42, y + r * 0.12);
+  ctx.stroke();
+  ctx.fillStyle = "#1f2b2b";
+  ctx.beginPath();
+  ctx.arc(x, y, 3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// Drawn after render() (identity transform), so in plain canvas space.
+function drawPowerups() {
+  if (state.slowTimer > 0) {
+    ctx.fillStyle = "rgba(34,178,180,0.1)"; // blue tint while active
+    ctx.fillRect(0, 0, W, H);
+  }
+  for (const p of state.powerups) {
+    const pulse = 1 + Math.sin(p.age * 6) * 0.06;
+    drawStopwatch(p.x, p.y, POWERUP_R * pulse);
+  }
+}
+
+// Returns true if a power-up was collected at (px, py) — caller then skips the drop.
+function collectPowerupAt(px, py) {
+  for (let i = 0; i < state.powerups.length; i++) {
+    const p = state.powerups[i];
+    const hitR = POWERUP_R + 16; // generous hit area for touch
+    if ((px - p.x) ** 2 + (py - p.y) ** 2 <= hitR * hitR) {
+      state.powerups.splice(i, 1);
+      state.slowTimer = SLOW_DURATION;
+      playPowerup();
+      updateSlowIndicator();
+      return true;
+    }
+  }
+  return false;
+}
+
+function playPowerup() {
+  tone({ freq: 660, type: "sine", dur: 0.1, gain: 0.2 });
+  tone({ freq: 990, type: "sine", dur: 0.15, gain: 0.18, delay: 0.08 });
+}
+
+function updateSlowIndicator() {
+  if (state.slowTimer > 0) {
+    slowmoEl.classList.remove("hidden");
+    slowmoFill.style.width = (state.slowTimer / SLOW_DURATION) * 100 + "%";
+  } else {
+    slowmoEl.classList.add("hidden");
+  }
+}
+
+function clearPowerups() {
+  state.powerups = [];
+  state.slowTimer = 0;
+  state.powerSpawnTimer = POWER_SPAWN_MIN;
+  updateSlowIndicator();
+}
+
 function frame(timestamp) {
   if (!state.lastTime) state.lastTime = timestamp;
   const dt = Math.min((timestamp - state.lastTime) / 1000, 0.05); // clamp big gaps
@@ -1307,8 +1449,12 @@ function frame(timestamp) {
     // While paused for the reward, leave the frozen frame on the canvas and
     // give the confetti all the frame budget.
     if (!state.paused) {
-      update(dt);
+      updatePowerups(dt); // real time
+      const gameDt = state.slowTimer > 0 ? dt * SLOW_FACTOR : dt; // slow-mo affects the game
+      update(gameDt);
       render();
+      drawPowerups();
+      updateSlowIndicator();
     }
   } else {
     updateMenu(dt);
@@ -1374,7 +1520,19 @@ pauseQuitBtn.addEventListener("click", quitFromPause);
 // Mute toggle.
 muteBtn.addEventListener("click", toggleMute);
 
-canvas.addEventListener("pointerdown", dropActive);
+canvas.addEventListener("pointerdown", (e) => {
+  if (!state.running || state.paused) return;
+  // Map the pointer to canvas coordinates and check power-ups first — tapping
+  // one collects it and must NOT also drop a block.
+  const rect = canvas.getBoundingClientRect();
+  const px = (e.clientX - rect.left) * (W / rect.width);
+  const py = (e.clientY - rect.top) * (H / rect.height);
+  if (collectPowerupAt(px, py)) {
+    e.preventDefault();
+    return;
+  }
+  dropActive();
+});
 window.addEventListener("keydown", (e) => {
   if (e.code === "Space") {
     e.preventDefault();

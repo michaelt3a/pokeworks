@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bowl Builder — Pokeworks</title>
   <meta name="description" content="Pokeworks — Bowl Builder minigame." />
-  <link rel="stylesheet" href="styles.css?v=7" />
+  <link rel="stylesheet" href="styles.css?v=8" />
 </head>
 <body>
   <a href="index.html" class="back-link">← Minigames</a>
@@ -33,6 +33,12 @@
 
       <!-- Perfect-drop combo counter (top-right of the box) -->
       <div id="combo" class="combo hidden"><span id="combo-count">x2</span></div>
+
+      <!-- Slow-mo power-up indicator (top-center of the box) -->
+      <div id="slowmo" class="slowmo hidden">
+        <span class="slowmo-label">⏱ Slow-mo</span>
+        <div class="slowmo-track"><i id="slowmo-fill" class="slowmo-fill"></i></div>
+      </div>
 
       <!-- Start overlay -->
       <div id="overlay" class="overlay">
@@ -101,6 +107,6 @@
   </div>
 
   <script src="transitions.js?v=3"></script>
-  <script src="script.js?v=5"></script>
+  <script src="script.js?v=6"></script>
 </body>
 </html>
