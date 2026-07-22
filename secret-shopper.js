@@ -68,62 +68,116 @@ const ITEMDEF = {
 };
 const CORE_ORDER = ["greetFast", "greetWarm", "preOrder", "firstTime", "menuKnow", "upsell", "rewards", "fastOrder", "parting"];
 
-// --- Dialogue pools (variety between runs) --------------------------------
-const GREET_GOOD = [
-  "“Aloha! Welcome in!”", "“Welcome to Pokeworks!”", "“Hey there, welcome in!”",
-  "“Good afternoon! Come on in!”", "“Hi there! Great to see you!”",
-];
-const GREET_BAD = [
-  "“Yo.”", "(Keep restocking the napkins)", "(Stare at the register)",
-  "“We close in an hour.”", "(Check your phone)", "(Yawn loudly)",
-];
-const PREORDER_GOOD = [
-  "“Welcome to Pokeworks! How's your day going?”", "“Hi! How are you today?”",
-  "“Great to see you. How's it going?”", "“Hi there! What can I get started for you?”",
-];
-const PREORDER_BAD = [
-  "“What do you want?”", "“Hurry it up, there's a line.”", "“Next.”",
-  "(Point at the menu silently)", "(Sigh) “Go ahead.”",
-];
-const FIRSTTIME_GOOD = ["“Is this your first time visiting us?”", "“Have you been in before?”"];
-const FIRSTTIME_BAD = [
-  "(Skip the small talk)", "“You look like you eat here too much.”",
-  "“You already know what you want, right?”", "“Name for the order. Go.”",
-];
-const UPSELL_GOOD = [
-  "“Would you like to add avocado or a drink?”", "“Can I add a snack or a drink for you?”",
-  "“Avocado on that? It's amazing.”", "“Any drinks or snacks with that today?”",
-];
-const UPSELL_BAD = [
-  "“That everything? Cool.”", "“Anything else? No? Fine.”",
-  "(Ring them up without asking)", "(Just total it up)",
-];
-const REWARDS_GOOD = [
-  "“Do you have our rewards app? You earn points!”", "“Are you in our rewards program yet?”",
-  "“Want me to scan your rewards app?”",
-];
-const REWARDS_BAD = [
-  "“Alright, that'll be $13.45.”", "(Skip straight to payment)",
-  "“Cash or card. Pick.”", "(Tap the card reader impatiently)",
-];
-const PARTING_GOOD = [
-  "“Thank you! Have a great day!”", "“Thanks so much. Enjoy!”",
-  "“Have a wonderful rest of your day!”", "“Mahalo! See you next time!”",
-];
-const PARTING_BAD = [
-  "“NEXT!”", "(Turn away silently)", "“Finally.”", "(Slide the bowl over wordlessly)",
-];
-const DINING_GOOD = ["Visit their table: “How is everything?”", "Swing by: “Can I get you anything else?”"];
-const DINING_BAD = [
-  "(Stand around behind the counter)", "(Watch them eat, silently, from a distance)",
-  "(Start sweeping loudly next to them)",
-];
-
-const REPLY_HAPPY = ["Great, thanks for asking!", "Doing well, thanks!", "Aw, thanks for asking!", "Doing great now, thanks!"];
-const REPLY_ANNOYED = ["Uh... okay then.", "Wow. Friendly.", "...sure.", "Charming."];
-const REPLY_FIRSTTIME = ["First time, actually!", "I come here all the time!", "First visit! What do you recommend?", "My friend wouldn't stop talking about this place."];
-const REPLY_UPSELL_YES = ["Ooh, avocado please!", "A drink sounds good!", "Go on then, add the avocado.", "Twist my arm... yes."];
-const REPLY_REWARDS_YES = ["Just downloaded it!", "Already got it. 2,000 points!", "Sure, scan away!"];
+// --- Dialogue pools -------------------------------------------------------
+// Every option carries `t` (what YOU say/do) and `r` (how the GUEST reacts to
+// that exact line), so their response always matches what actually happened.
+const GREETS = {
+  good: [
+    { t: "“Aloha! Welcome in!”", r: "Aloha! Happy to be here." },
+    { t: "“Welcome to Pokeworks!”", r: "Thanks! Smells amazing in here." },
+    { t: "“Hey there, welcome in!”", r: "Hey! Good to be back." },
+    { t: "“Good afternoon! Come on in!”", r: "Good afternoon to you too!" },
+    { t: "“Hi there! Great to see you!”", r: "Great to be seen!" },
+  ],
+  bad: [
+    { t: "“Yo.”", r: "...'Yo'? Okay then." },
+    { t: "(Keep restocking the napkins)", r: "Um... hello? I'm right here?" },
+    { t: "(Stare at the register)", r: "Should I... come back later?" },
+    { t: "“We close in an hour.”", r: "I literally just walked in?" },
+    { t: "(Check your phone)", r: "Is that phone more important than me?" },
+    { t: "(Yawn loudly)", r: "Am I boring you already?" },
+  ],
+};
+const PREORDER = {
+  good: [
+    { t: "“Welcome to Pokeworks! How's your day going?”", r: "Going great, thanks for asking!" },
+    { t: "“Hi! How are you today?”", r: "Doing well! Hope you are too." },
+    { t: "“Great to see you. How's it going?”", r: "Can't complain! Even better once I eat." },
+    { t: "“Hi there! What can I get started for you?”", r: "Love the energy! Let me look real quick." },
+  ],
+  bad: [
+    { t: "“What do you want?”", r: "Wow. A 'hello' would've been nice." },
+    { t: "“Hurry it up, there's a line.”", r: "There is literally nobody behind me." },
+    { t: "“Next.”", r: "I'm... the only person in line?" },
+    { t: "(Point at the menu silently)", r: "Are we playing charades?" },
+    { t: "(Sigh) “Go ahead.”", r: "Sorry to inconvenience you, I guess?" },
+  ],
+};
+const FIRSTTIME = {
+  good: [
+    { t: "“Is this your first time visiting us?”", r: null }, // they answer below
+    { t: "“Have you been in before?”", r: null },
+  ],
+  bad: [
+    { t: "(Skip the small talk)", r: null },
+    { t: "“You look like you eat here too much.”", r: "EXCUSE me?!" },
+    { t: "“You already know what you want, right?”", r: "I mean... maybe? Kind of rude." },
+    { t: "“Name for the order. Go.”", r: "It's... Sam? Sheesh." },
+  ],
+};
+const FIRSTTIME_REPLIES = ["First time, actually!", "I come here all the time!", "First visit! What do you recommend?", "My friend wouldn't stop talking about this place."];
+const UPSELL = {
+  good: [
+    { t: "“Would you like to add avocado or a drink?”", r: "Ooh, avocado please!" },
+    { t: "“Can I add a snack or a drink for you?”", r: "A drink sounds good, actually!" },
+    { t: "“Avocado on that? It's amazing.”", r: "Go on then, add the avocado." },
+    { t: "“Any drinks or snacks with that today?”", r: "Twist my arm... a drink, sure." },
+  ],
+  bad: [
+    { t: "“That everything? Cool.”", r: "...I guess that's everything, then." },
+    { t: "“Anything else? No? Fine.”", r: "You answered for me?" },
+    { t: "(Ring them up without asking)", r: "Oh. We're done? Okay." },
+    { t: "(Just total it up)", r: "Didn't even get to ask about avocado..." },
+  ],
+};
+const REWARDS = {
+  good: [
+    { t: "“Do you have our rewards app? You earn points!”", r: "Just downloaded it!" },
+    { t: "“Are you in our rewards program yet?”", r: "Already am. 2,000 points!" },
+    { t: "“Want me to scan your rewards app?”", r: "Sure, scan away!" },
+  ],
+  bad: [
+    { t: "“Alright, that'll be $13.45.”", r: "Straight to business, huh." },
+    { t: "(Skip straight to payment)", r: "No rewards pitch? My points..." },
+    { t: "“Cash or card. Pick.”", r: "...Card, I guess?" },
+    { t: "(Tap the card reader impatiently)", r: "Okay, okay, I'm tapping!" },
+  ],
+};
+const PARTING = {
+  good: [
+    { t: "“Thank you! Have a great day!”", r: "You too! Thanks so much!" },
+    { t: "“Thanks so much. Enjoy!”", r: "Oh, I will. Thank you!" },
+    { t: "“Have a wonderful rest of your day!”", r: "What a sweetheart. You as well!" },
+    { t: "“Mahalo! See you next time!”", r: "Mahalo! I'll be back." },
+  ],
+  bad: [
+    { t: "“NEXT!”", r: "There is no one behind me!" },
+    { t: "(Turn away silently)", r: "...Bye, I guess?" },
+    { t: "“Finally.”", r: "'Finally'?? Wow." },
+    { t: "(Slide the bowl over wordlessly)", r: "Thanks...?" },
+  ],
+};
+const DINING = {
+  good: [
+    { t: "Visit their table: “How is everything?”", r: null }, // handled at the table
+    { t: "Swing by: “Can I get you anything else?”", r: null },
+  ],
+  bad: [
+    { t: "(Stand around behind the counter)", r: null },
+    { t: "(Watch them eat, silently, from a distance)", r: "...Why are they staring at me?" },
+    { t: "(Start sweeping loudly next to them)", r: "Could you sweep... literally anywhere else?" },
+  ],
+};
+// What the guest says when a timer runs out and you never responded.
+const TIMEOUT_LINE = {
+  greet: "...I've been standing here a whole minute.",
+  preOrder: "Hello? I'd like to order?",
+  firstTime: "...Should I just order, then?",
+  upsell: "So... is that everything, or?",
+  rewards: "Do I just... pay now?",
+  parting: "...I'll just take this and go, then.",
+  dining: null,
+};
 const REPLY_TABLE = ["Delicious, thank you!", "So good. I'm telling everyone.", "Best bowl yet!", "Perfect, as always."];
 const REPLY_SLOW = ["That took a while...", "I was about to send a search party.", "Finally..."];
 const LEAVE_LINES = ["That's it. I'm leaving!", "Forget it, I'll go somewhere else.", "Unbelievable. I'm out."];
@@ -409,7 +463,7 @@ function ask(title, options, timerSec) {
         btn.classList.add(opt.good ? "picked-good" : "picked-bad");
         if (opt.good) SFX.good(); else SFX.bad();
         await wait(650);
-        resolve({ good: opt.good, text: opt.t, inTime: true, timedOut: false });
+        resolve({ good: opt.good, text: opt.t, reply: opt.r || null, inTime: true, timedOut: false });
       });
       choicesEl.appendChild(btn);
       buttons.push(btn);
@@ -426,7 +480,7 @@ function ask(title, options, timerSec) {
         SFX.bad();
         await wait(900);
         timerEl.classList.add("hidden");
-        resolve({ good: false, text: null, inTime: false, timedOut: true });
+        resolve({ good: false, text: null, reply: null, inTime: false, timedOut: true });
       }, timerSec * 1000);
     }
   });
@@ -437,10 +491,12 @@ function note(title) {
   timerEl.classList.add("hidden");
 }
 
-// Build 1 good + (n-1) bad options from pools.
-function mix(goodPool, badPool, badCount) {
-  const opts = [{ t: pick(goodPool), good: true }];
-  for (const b of pickN(badPool, badCount)) opts.push({ t: b, good: false });
+// Build 1 good + (n) bad options from a {good, bad} pool, keeping each
+// option's paired guest reaction.
+function mix(pool, badCount) {
+  const g = pick(pool.good);
+  const opts = [{ t: g.t, r: g.r, good: true }];
+  for (const b of pickN(pool.bad, badCount)) opts.push({ t: b.t, r: b.r, good: false });
   return opts;
 }
 
@@ -561,12 +617,13 @@ const EVENTS = {
       SFX.crash();
       await say(custBubble, pick(["Oh no, someone spilled a drink!", "Whoa, watch out, there's a spill!"]), 1400);
       const r = await ask("A drink spills near the counter!", [
-        { t: "Grab the mop and a wet-floor sign", good: true },
-        { t: "(Someone else will get it)", good: false },
-        { t: "Toss one napkin at it from here", good: false },
-        { t: "“Careful, everyone!” and keep working", good: false },
+        { t: "Grab the mop and a wet-floor sign", good: true, r: "Nice save. Very professional!" },
+        { t: "(Someone else will get it)", good: false, r: "So the puddle just... lives here now?" },
+        { t: "Toss one napkin at it from here", good: false, r: "One napkin is not going to cut it." },
+        { t: "“Careful, everyone!” and keep working", good: false, r: "Warning us is not the same as mopping..." },
       ], QUESTION_SECS);
       if (r.good) await say(empBubble, "All cleaned up. Sorry about that!", 1200);
+      await say(custBubble, r.timedOut ? "Someone is going to slip on that..." : r.reply, 1200);
       return r;
     },
     label: "Handled the spill quickly",
@@ -577,13 +634,13 @@ const EVENTS = {
       SFX.ring();
       await say(empBubble, "*ring ring*", 900);
       const r = await ask("The store phone rings mid-order.", [
-        { t: "“Excuse me one moment,” then answer politely", good: true },
-        { t: "(Let it ring forever)", good: false },
-        { t: "Answer it and chat for five minutes", good: false },
-        { t: "(Unplug the phone)", good: false },
+        { t: "“Excuse me one moment,” then answer politely", good: true, r: "No problem, take your time!" },
+        { t: "(Let it ring forever)", good: false, r: "Are you... going to get that?" },
+        { t: "Answer it and chat for five minutes", good: false, r: "...I'm still standing right here." },
+        { t: "(Unplug the phone)", good: false, r: "Did you just unplug the phone?!" },
       ], QUESTION_SECS);
-      if (r.good) await say(custBubble, "No problem, take your time!", 1100);
-      else moodDown();
+      if (!r.good) moodDown();
+      await say(custBubble, r.timedOut ? "That ringing is driving me crazy." : r.reply, 1100);
       return r;
     },
     label: "Handled the phone professionally",
@@ -596,13 +653,14 @@ const EVENTS = {
       await enterDoor(extraWrap);
       walkTo(extraWrap, SPOT.wait, 1400);
       const r = await ask("Another guest walks in while you're busy. Quick!", [
-        { t: "“Welcome in! I'll be right with you!”", good: true },
-        { t: "(Don't look up)", good: false },
-        { t: "“There's a line. Wait.”", good: false },
-        { t: "(Groan audibly)", good: false },
+        { t: "“Welcome in! I'll be right with you!”", good: true, r: "No rush, just picking up!" },
+        { t: "(Don't look up)", good: false, r: "Um... hello? Anyone?" },
+        { t: "“There's a line. Wait.”", good: false, r: "...There are only two of us here." },
+        { t: "(Groan audibly)", good: false, r: "Wow. Charming place." },
       ], WALKIN_SECS);
       doorEl.classList.remove("open");
-      if (r.good) await say(extraBubble, pick(["No rush, just picking up!", "Thanks! Take your time."]), 1200);
+      // The reaction comes from the guest who just walked in.
+      await say(extraBubble, r.timedOut ? "Guess I'll just... stand here, then." : r.reply, 1200);
       return r;
     },
     label: "Acknowledged the waiting guest",
@@ -611,19 +669,17 @@ const EVENTS = {
     when: "after",
     async run() {
       custMood("warn");
-      await say(custBubble, pick(["Wait, I asked for no onions!", "Hold on, this isn't the right sauce..."]), 1400);
+      const gripe = pick(["no onions", "extra sauce"]);
+      await say(custBubble, gripe === "no onions" ? "Wait, I asked for no onions!" : "Hold on, I asked for extra sauce...", 1400);
       const r = await ask("They found a mistake in the bowl!", [
-        { t: "“So sorry! I'll remake that right away.”", good: true },
-        { t: "“No refunds.”", good: false },
-        { t: "(Shrug)", good: false },
-        { t: "“Are you sure you ordered that?”", good: false },
+        { t: "“So sorry! I'll remake that right away.”", good: true, r: "Wow, that was fast. Thank you!" },
+        { t: "“No refunds.”", good: false, r: "It's YOUR mistake and there are no refunds?!" },
+        { t: "(Shrug)", good: false, r: "Did you seriously just shrug at me?" },
+        { t: "“Are you sure you ordered that?”", good: false, r: "YES, I know what I ordered!" },
       ], QUESTION_SECS);
-      if (r.good) {
-        moodUp();
-        await say(custBubble, "Wow, that was fast. Thank you!", 1200);
-      } else {
-        custMood("mad");
-      }
+      if (r.good) moodUp();
+      else custMood("mad");
+      await say(custBubble, r.timedOut ? "Hello?! My bowl is wrong!" : r.reply, 1200);
       return r;
     },
     label: "Recovered from a mistake",
@@ -636,13 +692,18 @@ const EVENTS = {
         "...and THAT'S why I'm never allowed back at that karaoke bar...",
       ]), 1700);
       const r = await ask("They're deep into a story. What do you do?", [
-        { t: "Listen and react warmly", good: true },
-        { t: "(Walk away mid-sentence)", good: false },
-        { t: "“Is this going anywhere?”", good: false },
-        { t: "“Cool cool cool.” (Look at the door)", good: false },
+        { t: "Listen and react warmly", good: true, r: null },
+        { t: "(Walk away mid-sentence)", good: false, r: "...And they just walked off. Nice." },
+        { t: "“Is this going anywhere?”", good: false, r: "Well, EXCUSE me for sharing." },
+        { t: "“Cool cool cool.” (Look at the door)", good: false, r: "You're not even listening, are you?" },
       ], QUESTION_SECS);
-      if (r.good) await say(empBubble, pick(["No way. Through the child lock?!", "Stop, that's incredible."]), 1300);
-      else moodDown();
+      if (r.good) {
+        await say(empBubble, pick(["No way. Through the child lock?!", "Stop, that's incredible."]), 1300);
+        await say(custBubble, "Right?! You get it.", 1000);
+      } else {
+        moodDown();
+        await say(custBubble, r.timedOut ? "...You zoned out completely, didn't you?" : r.reply, 1100);
+      }
       return r;
     },
     label: "Stayed engaged with the guest",
@@ -764,7 +825,7 @@ async function runGuest(idx, personaKey) {
   if (personaKey === "rush") say(custBubble, "In a hurry, sorry!", 1400);
   const greet = track(await ask(
     personaKey === "rush" ? "A customer rushes in. Quick!" : "A customer just walked in!",
-    mix(GREET_GOOD, GREET_BAD, 3),
+    mix(GREETS, 3),
     P.greetSecs
   ));
   doorEl.classList.remove("open");
@@ -773,9 +834,10 @@ async function runGuest(idx, personaKey) {
   if (greet.good) {
     await say(empBubble, greet.text.replace(/[“”]/g, ""), 1100);
     moodUp();
+    if (greet.reply) await say(custBubble, greet.reply, 1000);
   } else {
     moodDown();
-    await say(custBubble, greet.timedOut ? "...hello?? Anyone?" : "...hello?", 1000);
+    await say(custBubble, greet.timedOut ? TIMEOUT_LINE.greet : (greet.reply || "...hello?"), 1000);
   }
   if (fedUp()) return stormOut();
 
@@ -784,16 +846,22 @@ async function runGuest(idx, personaKey) {
 
   // 3. Pleasant greeting before the order.
   await say(custBubble, personaKey === "rush" ? "Hi, I'd like to order. Fast!" : "Hi, I'd like to order.", 1200);
-  const pre = track(await ask("Take their order. How do you start?", mix(PREORDER_GOOD, PREORDER_BAD, 3), QUESTION_SECS));
+  const pre = track(await ask("Take their order. How do you start?", mix(PREORDER, 3), QUESTION_SECS));
   put("preOrder", pre.good);
-  if (pre.good) await say(custBubble, pick(REPLY_HAPPY), 1000);
-  else { moodDown(); await say(custBubble, pick(REPLY_ANNOYED), 1000); }
+  if (pre.good) {
+    if (pre.reply) await say(custBubble, pre.reply, 1000);
+  } else {
+    moodDown();
+    await say(custBubble, pre.timedOut ? TIMEOUT_LINE.preOrder : (pre.reply || "..."), 1000);
+  }
   if (fedUp()) return stormOut();
 
   // 4. First time visiting?
-  const ft = track(await ask("Anything to ask before the order?", mix(FIRSTTIME_GOOD, FIRSTTIME_BAD, 3), QUESTION_SECS));
+  const ft = track(await ask("Anything to ask before the order?", mix(FIRSTTIME, 3), QUESTION_SECS));
   put("firstTime", ft.good);
-  if (ft.good) await say(custBubble, pick(REPLY_FIRSTTIME), 1200);
+  if (ft.good) await say(custBubble, pick(FIRSTTIME_REPLIES), 1200);
+  else if (ft.timedOut) { moodDown(); await say(custBubble, TIMEOUT_LINE.firstTime, 1000); }
+  else if (ft.reply) { moodDown(); await say(custBubble, ft.reply, 1000); }
   if (fedUp()) return stormOut();
 
   // 5. Menu knowledge, harder with each guest.
@@ -817,15 +885,17 @@ async function runGuest(idx, personaKey) {
   if (fedUp()) return stormOut();
 
   // 6. Upsell.
-  const up = track(await ask("They've picked their bowl. Anything else?", mix(UPSELL_GOOD, UPSELL_BAD, 3), QUESTION_SECS));
+  const up = track(await ask("They've picked their bowl. Anything else?", mix(UPSELL, 3), QUESTION_SECS));
   put("upsell", up.good);
-  if (up.good) await say(custBubble, pick(REPLY_UPSELL_YES), 1100);
+  if (up.timedOut) { moodDown(); await say(custBubble, TIMEOUT_LINE.upsell, 1000); }
+  else if (up.reply) { if (!up.good) moodDown(); await say(custBubble, up.reply, 1100); }
   if (fedUp()) return stormOut();
 
   // 7. Rewards / app.
-  const rw = track(await ask("Before ringing them up…", mix(REWARDS_GOOD, REWARDS_BAD, 3), QUESTION_SECS));
+  const rw = track(await ask("Before ringing them up…", mix(REWARDS, 3), QUESTION_SECS));
   put("rewards", rw.good);
-  if (rw.good) await say(custBubble, pick(REPLY_REWARDS_YES), 1100);
+  if (rw.timedOut) { moodDown(); await say(custBubble, TIMEOUT_LINE.rewards, 1000); }
+  else if (rw.reply) { if (!rw.good) moodDown(); await say(custBubble, rw.reply, 1100); }
   if (fedUp()) return stormOut();
 
   // Surprise event (pre-serve ones fire here).
@@ -862,10 +932,15 @@ async function runGuest(idx, personaKey) {
   }
 
   // 9. Parting comment.
-  const part = track(await ask("Hand it over and say goodbye:", mix(PARTING_GOOD, PARTING_BAD, 3), QUESTION_SECS));
+  const part = track(await ask("Hand it over and say goodbye:", mix(PARTING, 3), QUESTION_SECS));
   put("parting", part.good);
-  if (part.good) { moodUp(); await say(custBubble, "Thanks so much!", 1000); }
-  else moodDown();
+  if (part.good) {
+    moodUp();
+    if (part.reply) await say(custBubble, part.reply, 1000);
+  } else {
+    moodDown();
+    await say(custBubble, part.timedOut ? TIMEOUT_LINE.parting : (part.reply || "..."), 1000);
+  }
 
   // 10. Dine in (they sit down at the table) or leave (takeout).
   if (dine) {
@@ -873,8 +948,9 @@ async function runGuest(idx, personaKey) {
     await walkTo(custWrap, SPOT.table, 1700);
     setSitting(true);
     await wait(350);
-    const dr = await ask("They're dining in. What do you do?", mix(DINING_GOOD, DINING_BAD, 3), QUESTION_SECS);
+    const dr = await ask("They're dining in. What do you do?", mix(DINING, 3), QUESTION_SECS);
     put("dining", dr.good);
+    if (!dr.good && dr.reply) await say(custBubble, dr.reply, 1100);
     if (dr.good) {
       note("Checking in on their table…");
       await walkTo(empWrap, SPOT.tableTalk, 1400);
