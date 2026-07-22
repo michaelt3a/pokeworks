@@ -148,6 +148,53 @@ body {
   color: var(--muted);
 }
 
+/* Phones: a compact 2x2 grid so all four games fit without scrolling */
+@media (max-width: 640px) {
+  body {
+    padding: 1.1rem 0.85rem 1.4rem;
+  }
+  .hub-header {
+    margin-bottom: 1rem;
+  }
+  .hub-logo {
+    height: 54px;
+  }
+  .hub-title {
+    font-size: 1.5rem;
+    margin: 0.35rem 0 0.15rem;
+  }
+  .hub-subtitle {
+    font-size: 0.85rem;
+  }
+  .cards {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.7rem;
+  }
+  .card-icon {
+    height: 62px;
+  }
+  .card-body {
+    padding: 0.6rem 0.7rem 0.75rem;
+  }
+  .card-title {
+    font-size: 0.95rem;
+    margin-bottom: 0.25rem;
+  }
+  .card-desc {
+    font-size: 0.72rem;
+    line-height: 1.3;
+    margin: 0 0 0.5rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .badge {
+    font-size: 0.62rem;
+    padding: 0.22rem 0.5rem;
+  }
+}
+
 /* Coming-soon page */
 .coming-soon {
   max-width: 520px;
