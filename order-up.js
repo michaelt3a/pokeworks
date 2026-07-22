@@ -32,6 +32,7 @@ const finalEl = document.getElementById("final");
 // --- Constants ----------------------------------------------------------
 const MAX_CUSTOMERS = 3;
 const START_LIVES = 3;
+const WAIT_DRAIN = 0.5; // patience rate for customers you're NOT serving
 const BEST_KEY = "pokeworks-orderup-best";
 // Shirt colors to vary the stick figures.
 const SHIRTS = ["#ee435b", "#22b2b4", "#f0a52c", "#7c5cff", "#39a85b", "#e8709b"];
@@ -131,11 +132,11 @@ function pickRecipe() {
 
 // Difficulty ramps with how many bowls you've served.
 function maxPatienceFor(recipe) {
-  const ramp = Math.max(0.68, 1 - S.served * 0.02);
-  return Math.round((recipeSize(recipe) * 1.9 + 8) * ramp);
+  const ramp = Math.max(0.75, 1 - S.served * 0.02);
+  return Math.round((recipeSize(recipe) * 2.2 + 12) * ramp);
 }
 function spawnInterval() {
-  return Math.max(3.5, 9 - S.served * 0.25);
+  return Math.max(4.5, 10.5 - S.served * 0.22);
 }
 
 // --- Stick figures ------------------------------------------------------
@@ -462,7 +463,10 @@ function frame(t) {
 
   if (S.running) {
     for (const c of S.customers.slice()) {
-      c.patience -= dt;
+      // The customer you're serving loses patience at full speed; everyone
+      // waiting drains slower since you can only build one order at a time.
+      const rate = c.id === S.activeId ? 1 : WAIT_DRAIN;
+      c.patience -= dt * rate;
       if (c.patience <= 0) { loseCustomer(c); continue; }
       updateCustomer(c);
     }

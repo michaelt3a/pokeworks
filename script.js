@@ -29,6 +29,7 @@ const screenDifficulty = document.getElementById("screen-difficulty");
 const screenReward = document.getElementById("screen-reward");
 const screenGameover = document.getElementById("screen-gameover");
 const screenPaused = document.getElementById("screen-paused");
+const screenLeaderboard = document.getElementById("screen-leaderboard");
 const rewardBtn = document.getElementById("reward-btn");
 const scrollHint = document.getElementById("scroll-hint");
 const orderBtn = document.getElementById("order-btn");
@@ -44,7 +45,17 @@ const comboCountEl = document.getElementById("combo-count");
 const pauseBtn = document.getElementById("pause-btn");
 const muteBtn = document.getElementById("mute-btn");
 
-const overlayScreens = [screenStart, screenDifficulty, screenReward, screenGameover, screenPaused];
+// Leaderboard elements
+const lbStartBtn = document.getElementById("lb-start-btn");
+const lbViewBtn = document.getElementById("lb-view-btn");
+const lbBackBtn = document.getElementById("lb-back-btn");
+const lbEntry = document.getElementById("lb-entry");
+const lbNameInput = document.getElementById("lb-name");
+const lbSaveBtn = document.getElementById("lb-save-btn");
+const lbList = document.getElementById("lb-list");
+const lbTabs = document.querySelectorAll(".lb-tab");
+
+const overlayScreens = [screenStart, screenDifficulty, screenReward, screenGameover, screenPaused, screenLeaderboard];
 
 // Show a single overlay panel and hide the rest.
 function showScreen(el) {
@@ -680,6 +691,99 @@ function showStartScreen() {
   showScreen(screenStart);
 }
 
+// --- Leaderboard (local, per browser) ----------------------------------
+
+const LEADERBOARD_KEY = "pokeworks-bowl-leaderboard";
+const LB_NAME_KEY = "pokeworks-bowl-lb-name";
+const LB_MAX = 10; // scores kept per difficulty
+const DIFF_LABEL = { easy: "Easy", medium: "Medium", impossible: "Impossible" };
+
+let lbReturnScreen = screenStart; // where "Back" goes
+let lbActiveTab = "easy";
+let lbNewEntry = null; // { diff, idx } — the row to highlight after a save
+
+function loadBoard() {
+  try {
+    const b = JSON.parse(localStorage.getItem(LEADERBOARD_KEY)) || {};
+    return { easy: b.easy || [], medium: b.medium || [], impossible: b.impossible || [] };
+  } catch (e) {
+    return { easy: [], medium: [], impossible: [] };
+  }
+}
+
+function saveBoard(board) {
+  try { localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(board)); } catch (e) { /* ignore */ }
+}
+
+// Would this score earn a spot on the given difficulty's board?
+function scoreQualifies(diff, score) {
+  if (score <= 0) return false;
+  const list = loadBoard()[diff] || [];
+  return list.length < LB_MAX || score > list[list.length - 1].score;
+}
+
+// Add a score, keep the top LB_MAX, return the new entry's rank (index).
+function addLeaderboardScore(diff, name, score) {
+  const board = loadBoard();
+  const list = board[diff] || (board[diff] = []);
+  const entry = { name: name || "Anon", score };
+  list.push(entry);
+  list.sort((a, b) => b.score - a.score);
+  board[diff] = list.slice(0, LB_MAX);
+  saveBoard(board);
+  return board[diff].indexOf(entry);
+}
+
+function setLbTab(diff) {
+  lbActiveTab = diff;
+  lbTabs.forEach((t) => t.classList.toggle("active", t.dataset.diff === diff));
+  renderLeaderboard();
+}
+
+function renderLeaderboard() {
+  const list = loadBoard()[lbActiveTab] || [];
+  lbList.innerHTML = "";
+  if (!list.length) {
+    const li = document.createElement("li");
+    li.className = "lb-empty";
+    li.textContent = "No scores yet — be the first!";
+    lbList.appendChild(li);
+    return;
+  }
+  list.forEach((entry, i) => {
+    const li = document.createElement("li");
+    li.className = "lb-row";
+    if (lbNewEntry && lbNewEntry.diff === lbActiveTab && lbNewEntry.idx === i) {
+      li.classList.add("lb-me");
+    }
+    li.innerHTML =
+      `<span class="lb-rank">${i + 1}</span>` +
+      `<span class="lb-name">${escapeHtml(entry.name)}</span>` +
+      `<span class="lb-score">${entry.score}</span>`;
+    lbList.appendChild(li);
+  });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function openLeaderboard(fromScreen, diff) {
+  lbReturnScreen = fromScreen;
+  setLbTab(diff || lbActiveTab);
+  overlay.classList.remove("hidden");
+  showScreen(screenLeaderboard);
+}
+
+function closeLeaderboard() {
+  if (lbReturnScreen === screenStart) {
+    showStartScreen();
+  } else {
+    showScreen(lbReturnScreen);
+  }
+}
+
 // --- Combo counter, pause, mute ----------------------------------------
 
 function updateCombo() {
@@ -842,9 +946,42 @@ function endGame() {
   gameoverSubtitle.textContent =
     `You added ${state.score} ingredient${state.score === 1 ? "" : "s"}.`;
 
+  // Offer a leaderboard entry if the score is good enough for this difficulty.
+  lbNewEntry = null;
+  if (scoreQualifies(state.difficulty, state.score)) {
+    pendingScore = { diff: state.difficulty, score: state.score };
+    lbNameInput.value = loadLbName();
+    lbEntry.classList.remove("hidden");
+  } else {
+    pendingScore = null;
+    lbEntry.classList.add("hidden");
+  }
+
   overlay.classList.remove("hidden");
   showScreen(screenGameover);
   lockScreenActions();
+}
+
+let pendingScore = null; // { diff, score } awaiting a name
+
+function loadLbName() {
+  try { return localStorage.getItem(LB_NAME_KEY) || ""; } catch (e) { return ""; }
+}
+function saveLbName(name) {
+  try { localStorage.setItem(LB_NAME_KEY, name); } catch (e) { /* ignore */ }
+}
+
+// Save the pending score under the typed name, then show the board.
+function submitLeaderboardName() {
+  if (!pendingScore) return;
+  const name = (lbNameInput.value || "").trim().slice(0, 12) || "Anon";
+  saveLbName(name);
+  const idx = addLeaderboardScore(pendingScore.diff, name, pendingScore.score);
+  lbNewEntry = { diff: pendingScore.diff, idx };
+  const diff = pendingScore.diff;
+  pendingScore = null;
+  lbEntry.classList.add("hidden");
+  openLeaderboard(screenGameover, diff);
 }
 
 // Drop the active ingredient, trimming it to its overlap with the surface below.
@@ -1627,6 +1764,19 @@ difficultyBtns.forEach((btn) => {
   btn.addEventListener("click", () => startGame(btn.dataset.difficulty));
 });
 
+// --- Leaderboard wiring ---
+lbStartBtn.addEventListener("click", () => openLeaderboard(screenStart, lbActiveTab));
+lbViewBtn.addEventListener("click", () => {
+  if (screenActionsLocked()) return;
+  openLeaderboard(screenGameover, state.difficulty || lbActiveTab);
+});
+lbBackBtn.addEventListener("click", closeLeaderboard);
+lbSaveBtn.addEventListener("click", submitLeaderboardName);
+lbNameInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); submitLeaderboardName(); }
+});
+lbTabs.forEach((t) => t.addEventListener("click", () => setLbTab(t.dataset.diff)));
+
 // Play Again restarts immediately at the same difficulty.
 playAgainBtn.addEventListener("click", () => {
   if (screenActionsLocked()) return;
@@ -1684,6 +1834,7 @@ canvas.addEventListener("pointerdown", (e) => {
   dropActive();
 });
 window.addEventListener("keydown", (e) => {
+  if (e.target && e.target.tagName === "INPUT") return; // don't hijack name typing
   if (e.code === "Space") {
     e.preventDefault();
     dropActive();
