@@ -42,7 +42,7 @@ const MENU_SECS = 9; // menu quizzes get a little longer to read
 const WALKIN_SECS = 3; // a waiting guest wants acknowledging FAST
 const STRIKES_TO_LEAVE = 3; // wrong answers before a normal guest storms out
 const SILENCE_TO_LEAVE = 2; // consecutive timeouts before they give up on you
-const SPOT = { greet: 24, counter: 46, table: 10, tableTalk: 26, wait: 32 };
+const SPOT = { door: 2, greet: 24, counter: 46, table: 10, tableTalk: 26, wait: 32 };
 const CUST_SHIRTS = ["#22b2b4", "#fd9f27", "#7c5cff", "#39a85b", "#e8709b", "#4c7dd1"];
 
 // Personalities change pacing, dialogue, and whether they dine in.
@@ -329,9 +329,32 @@ function showBest() {
 
 function walkTo(wrap, pct, ms) {
   wrap.classList.add("walking");
-  wrap.style.transitionDuration = ms + "ms";
+  wrap.style.setProperty("--walk", ms + "ms");
   wrap.style.left = pct + "%";
   return wait(ms).then(() => wrap.classList.remove("walking"));
+}
+// Teleport an actor without any walk animation.
+function placeAt(wrap, pct) {
+  wrap.style.setProperty("--walk", "0ms");
+  wrap.style.left = pct + "%";
+}
+// They step out through the doorway: walk to the door, fade, door shuts.
+async function exitDoor(wrap, walkMs) {
+  doorEl.classList.add("open");
+  await walkTo(wrap, SPOT.door, walkMs);
+  wrap.classList.add("offstage");
+  await wait(300);
+  doorEl.classList.remove("open");
+}
+// They step in through the doorway: appear in it, then walk on in.
+async function enterDoor(wrap) {
+  wrap.classList.add("offstage");
+  placeAt(wrap, SPOT.door);
+  doorEl.classList.add("open");
+  SFX.bell();
+  await wait(300); // door swings first
+  wrap.classList.remove("offstage");
+  await wait(280); // fade in inside the doorway
 }
 function say(bubble, text, holdMs) {
   bubble.textContent = text;
@@ -568,13 +591,9 @@ const EVENTS = {
   walkin: {
     when: "before",
     async run() {
-      doorEl.classList.add("open");
-      SFX.bell();
       extraStick.innerHTML = stickmanSVG(pick(CUST_SHIRTS), "ok");
       extraWrap.classList.remove("hidden");
-      extraWrap.style.transitionDuration = "0ms";
-      extraWrap.style.left = "-12%";
-      await wait(60);
+      await enterDoor(extraWrap);
       walkTo(extraWrap, SPOT.wait, 1400);
       const r = await ask("Another guest walks in while you're busy. Quick!", [
         { t: "“Welcome in! I'll be right with you!”", good: true },
@@ -698,13 +717,13 @@ async function runGuest(idx, personaKey) {
   };
   const fedUp = () => !isShopper && (strikes >= STRIKES_TO_LEAVE || silences >= SILENCE_TO_LEAVE);
 
-  // Fresh guest
+  // Fresh guest, waiting unseen in the doorway.
   custShirt = pick(CUST_SHIRTS);
   custSitting = false;
   custWrap.classList.remove("sitting");
   custMood(personaKey === "grumpy" ? "warn" : "ok");
-  custWrap.style.transitionDuration = "0ms";
-  custWrap.style.left = "-12%";
+  custWrap.classList.add("offstage");
+  placeAt(custWrap, SPOT.door);
   hush();
 
   const eventKey = personaKey === "chatty"
@@ -722,12 +741,16 @@ async function runGuest(idx, personaKey) {
     note("They've had enough…");
     await say(custBubble, pick(LEAVE_LINES), 1400);
     doorEl.classList.add("open");
-    await walkTo(custWrap, -12, 1500);
-    doorEl.classList.remove("open");
+    await walkTo(custWrap, SPOT.door, 1300);
+    custWrap.classList.add("offstage");
     if (!extraWrap.classList.contains("hidden")) {
-      await walkTo(extraWrap, -12, 1100);
+      // the waiting guest bails too
+      await walkTo(extraWrap, SPOT.door, 900);
+      extraWrap.classList.add("offstage");
       extraWrap.classList.add("hidden");
     }
+    await wait(300);
+    doorEl.classList.remove("open");
     hush();
     showReview(idx);
   };
@@ -735,11 +758,9 @@ async function runGuest(idx, personaKey) {
   note(`Guest ${idx + 1} of ${GUESTS_PER_SHIFT} is arriving…`);
   await wait(500);
 
-  // 1-2. Walk in and greet fast + warm. Timing out fails BOTH.
-  doorEl.classList.add("open");
-  SFX.bell();
-  await wait(250);
-  walkTo(custWrap, SPOT.greet, 2200);
+  // 1-2. They come in through the door, then greet fast + warm.
+  await enterDoor(custWrap);
+  walkTo(custWrap, SPOT.greet, 2000);
   if (personaKey === "rush") say(custBubble, "In a hurry, sorry!", 1400);
   const greet = track(await ask(
     personaKey === "rush" ? "A customer rushes in. Quick!" : "A customer just walked in!",
@@ -829,9 +850,7 @@ async function runGuest(idx, personaKey) {
   if (eventKey === "walkin" && !extraWrap.classList.contains("hidden")) {
     say(extraBubble, "Got my pickup. Thanks!", 1000);
     await wait(300);
-    doorEl.classList.add("open");
-    await walkTo(extraWrap, -12, 1400);
-    doorEl.classList.remove("open");
+    await exitDoor(extraWrap, 1200);
     extraWrap.classList.add("hidden");
   }
 
@@ -867,15 +886,11 @@ async function runGuest(idx, personaKey) {
     note("They're finishing up…");
     await wait(500);
     setSitting(false);
-    doorEl.classList.add("open");
-    await walkTo(custWrap, -12, 1700);
-    doorEl.classList.remove("open");
+    await exitDoor(custWrap, 900);
   } else {
     note("They're taking it to go…");
-    doorEl.classList.add("open");
     SFX.bell();
-    await walkTo(custWrap, -12, 1900);
-    doorEl.classList.remove("open");
+    await exitDoor(custWrap, 1600);
   }
   hush();
   showReview(idx);
@@ -953,9 +968,9 @@ async function runShift() {
   toastsEl.innerHTML = "";
 
   empStick.innerHTML = stickmanSVG("#ee435b", "ok");
-  empWrap.style.transitionDuration = "0ms";
-  empWrap.style.left = "74%";
+  placeAt(empWrap, 74);
   extraWrap.classList.add("hidden");
+  extraWrap.classList.remove("offstage");
   doorEl.classList.remove("open");
   overlay.classList.add("hidden");
   scorecardEl.classList.add("hidden");
@@ -1038,6 +1053,7 @@ againBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); runShift(
 tableEl.innerHTML = tableSVG();
 empStick.innerHTML = stickmanSVG("#ee435b", "ok");
 custStick.innerHTML = stickmanSVG(custShirt, "ok");
-custWrap.style.left = "-12%";
-empWrap.style.left = "74%";
+custWrap.classList.add("offstage");
+placeAt(custWrap, SPOT.door);
+placeAt(empWrap, 74);
 showBest();
