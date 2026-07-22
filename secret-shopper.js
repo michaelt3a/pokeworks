@@ -413,6 +413,20 @@ async function enterDoor(wrap) {
 function say(bubble, text, holdMs) {
   bubble.textContent = text;
   bubble.classList.remove("hidden");
+  // Keep the bubble inside the scene on narrow screens: shift it horizontally
+  // as needed, while the tail (::after) stays pointing at the speaker.
+  bubble.style.transform = "";
+  bubble.style.setProperty("--shift", "0px");
+  const scene = document.querySelector(".ss-scene").getBoundingClientRect();
+  const b = bubble.getBoundingClientRect();
+  const pad = 6;
+  let dx = 0;
+  if (b.right > scene.right - pad) dx = scene.right - pad - b.right;
+  if (b.left + dx < scene.left + pad) dx = scene.left + pad - b.left;
+  if (dx !== 0) {
+    bubble.style.transform = `translateX(${dx}px)`;
+    bubble.style.setProperty("--shift", dx + "px");
+  }
   const ms = Math.max(holdMs || 0, 1500, 900 + text.length * 55);
   return wait(ms).then(() => bubble.classList.add("hidden"));
 }
