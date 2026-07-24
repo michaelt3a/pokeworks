@@ -702,3 +702,56 @@
   .ou-starbar { font-size: 0.9rem; letter-spacing: 1px; }
   .ou-star-num { font-size: 0.78rem; }
 }
+
+/* -------- Pace popup: Endless or Rush, after picking a ticket style ------- */
+.ou-variants {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.7rem;
+  margin: 0.4rem 0 0.9rem;
+}
+.ou-var {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: #f2f8f8;
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  padding: 1rem 0.8rem 0.9rem;
+  font: inherit;
+  cursor: pointer;
+  text-align: center;
+  transition: transform 0.13s ease, border-color 0.13s ease, box-shadow 0.13s ease;
+}
+.ou-var:hover {
+  transform: translateY(-3px);
+  border-color: var(--teal);
+  box-shadow: 0 8px 20px rgba(34, 178, 180, 0.25);
+}
+.ou-var-rush:hover {
+  border-color: var(--accent);
+  box-shadow: 0 8px 20px rgba(238, 67, 91, 0.25);
+}
+.ou-var-icon { font-size: 2rem; line-height: 1.1; }
+.ou-var strong { font-size: 1rem; color: var(--text); }
+.ou-var small { font-size: 0.72rem; color: var(--muted); line-height: 1.35; }
+.ou-var-back {
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.3rem 0.6rem;
+}
+.ou-var-back:hover { color: var(--text); }
+
+@media (max-width: 640px) {
+  .ou-variants { grid-template-columns: 1fr; gap: 0.5rem; }
+  .ou-var { flex-direction: row; text-align: left; padding: 0.7rem 0.9rem; }
+  .ou-var-icon { font-size: 1.5rem; }
+  .ou-var strong { flex: none; }
+  .ou-var small { flex: 1 1 auto; }
+}

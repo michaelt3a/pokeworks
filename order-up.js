@@ -34,15 +34,22 @@ const bankEl = document.getElementById("ou-bank");
 const shopEl = document.getElementById("ou-shop");
 const overlay = document.getElementById("overlay");
 const screenStart = document.getElementById("screen-start");
+const screenVariant = document.getElementById("screen-variant");
 const screenOver = document.getElementById("screen-over");
 const startNormalBtn = document.getElementById("start-normal");
 const startHardBtn = document.getElementById("start-hard");
+const timeLabelEl = document.getElementById("ou-time-label");
+const variantTitleEl = document.getElementById("variant-title");
+const varEndlessBtn = document.getElementById("var-endless");
+const varRushBtn = document.getElementById("var-rush");
+const varBackBtn = document.getElementById("var-back");
 const againBtn = document.getElementById("again-btn");
 const finalEl = document.getElementById("final");
 
 // --- Constants ----------------------------------------------------------
 const MAX_CUSTOMERS = 3;
-const SHIFT_LEN = 150; // seconds per shift; the clock is the end condition now
+const SHIFT_LEN = 150; // seconds per Rush shift
+const MAX_WALKOUTS = 3; // an Endless shift survives until this many storm out
 const WAIT_DRAIN = 0.5; // patience rate for customers you're NOT serving
 // "-v2": bests are dollars now, so point-era records start over.
 const BEST_KEY = "pokeworks-orderup-best-v2";
@@ -118,9 +125,14 @@ function adsMult() { return 1 - 0.15 * upgradeLvl("ads"); }
 
 // --- State --------------------------------------------------------------
 let best = 0; // best for the current mode (set once S exists)
+// Modes compose a ticket style with a pace: "normal" and "hard" are Endless
+// (no clock, three walkouts end the shift); "normal-rush" and "hard-rush"
+// race the 2:30 clock. Each of the four keeps its own best and board.
+function isHard() { return S.mode.indexOf("hard") === 0; }
+function isRush() { return S.mode.indexOf("-rush") !== -1; }
 const S = {
   running: false,
-  mode: "normal", // "normal" | "hard"
+  mode: "normal", // normal | hard | normal-rush | hard-rush
   score: 0, // money earned this shift (the leaderboard number)
   served: 0,
   lost: 0,
@@ -440,7 +452,7 @@ function payoutFor(c, a) {
   if (!a.perfect) tip *= 0.5; // a fast-but-wrong bowl still earns a little
   let m = price + tip + (a.perfect ? S.combo * 2 : 0);
   const mult =
-    c.tier.pay * priceMult() * (S.mode === "hard" ? 1.5 : 1);
+    c.tier.pay * priceMult() * (isHard() ? 1.5 : 1);
   m *= mult;
   tip *= mult;
   if (a.frac <= 0) return { money: 0, tip: 0 };
@@ -456,7 +468,7 @@ function serve(c) {
   if (window.PokeAch) {
     if (S.served === 1) PokeAch.unlock("ou-first");
     if (S.served === 10) PokeAch.unlock("ou-10");
-    if (S.mode === "hard" && S.served === 5) PokeAch.unlock("ou-hard");
+    if (isHard() && S.served === 5) PokeAch.unlock("ou-hard");
     if (c.tier.key === "vip" && a.perfect) PokeAch.unlock("ou-vip");
   }
   // Only a perfect bowl keeps the combo alive.
@@ -477,6 +489,9 @@ function loseCustomer(c) {
   SFX.angry();
   postReview(c, { stars: Math.random() < 0.5 ? 0 : 1, comment: pickFrom(REVIEW_LEFT) });
   removeCustomer(c, "leaving");
+  renderPace();
+  // In Endless, walkouts are the end condition.
+  if (!isRush() && S.lost >= MAX_WALKOUTS && S.running) endGame();
 }
 
 // --- Reviews & the star rating (the Secret Shopper toast, behind a counter) --
@@ -544,11 +559,17 @@ function renderRating() {
 function renderMoney() {
   scoreEl.textContent = "$" + S.score;
 }
-function renderTime() {
-  const t = Math.max(0, Math.ceil(S.timeLeft));
-  const str = Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
-  if (timeEl.textContent !== str) timeEl.textContent = str;
-  timeEl.classList.toggle("urgent", t <= 15);
+// The pace tile: the countdown in Rush, the walkout count in Endless.
+function renderPace() {
+  if (isRush()) {
+    const t = Math.max(0, Math.ceil(S.timeLeft));
+    const str = Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
+    if (timeEl.textContent !== str) timeEl.textContent = str;
+    timeEl.classList.toggle("urgent", t <= 15);
+  } else {
+    timeEl.textContent = "🚶 " + S.lost + "/" + MAX_WALKOUTS;
+    timeEl.classList.toggle("urgent", S.lost >= MAX_WALKOUTS - 1);
+  }
 }
 // A little "+$12" that floats up off the bowl when a serve pays out, with the
 // tip called out underneath so fast serves visibly pay better.
@@ -584,7 +605,7 @@ function renderTicket() {
   orderNameEl.textContent = c.name;
   checklistEl.innerHTML = "";
   // Hard mode: no ticket — the player builds it from memory.
-  if (S.mode === "hard") {
+  if (isHard()) {
     const note = document.createElement("span");
     note.className = "ou-memory";
     note.textContent = "🧠 Build it from memory";
@@ -757,11 +778,12 @@ function frame(t) {
   S.lastTime = t;
 
   if (S.running) {
-    // The shift clock is the end condition now — walkouts cost money and
-    // stars, not the run.
-    S.timeLeft -= dt;
-    renderTime();
-    if (S.timeLeft <= 0) {
+    // Rush races the clock; Endless has no clock and ends on walkouts.
+    if (isRush()) {
+      S.timeLeft -= dt;
+      renderPace();
+    }
+    if (isRush() && S.timeLeft <= 0) {
       endGame();
     } else {
       // Kai, the auto-worker: every few seconds he scoops one correct
@@ -813,7 +835,8 @@ function startGame(mode) {
   renderMoney();
   bestEl.textContent = "$" + best;
   renderRating();
-  renderTime();
+  timeLabelEl.textContent = isRush() ? "Time" : "Walkouts";
+  renderPace();
   renderWorker();
   updateCombo();
   overlay.classList.add("hidden");
@@ -838,7 +861,7 @@ function endGame() {
   const arrow = rNow > S.ratingStart + 0.01 ? "📈" : rNow < S.ratingStart - 0.01 ? "📉" : "";
   finalEl.innerHTML =
     `You made <strong>$${S.score}</strong> — served ${S.served}, lost ${S.lost}` +
-    ` <span class="ou-mode-tag">${S.mode === "hard" ? "Hard" : "Normal"}</span>.` +
+    ` <span class="ou-mode-tag">${isHard() ? "Hard" : "Normal"}${isRush() ? " · Rush" : " · Endless"}</span>.` +
     `<br>★ ${S.ratingStart.toFixed(1)} → <strong>${rNow.toFixed(1)}</strong> ${arrow}` +
     (isBest && S.score > 0 ? `<br><span class="ou-best">★ New best shift!</span>` : "");
   renderShop();
@@ -861,6 +884,7 @@ function endGame() {
     ouLbEntry.classList.add("hidden");
   }
   screenStart.classList.add("hidden");
+  screenVariant.classList.add("hidden"); // may still be up if the run started from the popup
   screenOver.classList.remove("hidden");
   overlay.classList.remove("hidden");
 }
@@ -1005,8 +1029,24 @@ async function submitLbName() {
 }
 
 // --- Wiring -------------------------------------------------------------
-startNormalBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame("normal"); });
-startHardBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame("hard"); });
+// Picking a ticket style opens the pace popup: Endless or Rush.
+let pendingBase = "normal"; // which ticket style the popup starts
+function openVariant(base) {
+  pendingBase = base;
+  variantTitleEl.textContent =
+    (base === "hard" ? "Hidden Recipes" : "Recipes Shown") + " — pick your pace";
+  screenStart.classList.add("hidden");
+  screenVariant.classList.remove("hidden");
+}
+startNormalBtn.addEventListener("click", () => { ensureAudio(); SFX.pick(); openVariant("normal"); });
+startHardBtn.addEventListener("click", () => { ensureAudio(); SFX.pick(); openVariant("hard"); });
+varEndlessBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame(pendingBase); });
+varRushBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame(pendingBase + "-rush"); });
+varBackBtn.addEventListener("click", () => {
+  SFX.pick();
+  screenVariant.classList.add("hidden");
+  screenStart.classList.remove("hidden");
+});
 againBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame(S.mode); });
 
 // Serve whatever's in the bowl — mistakes and all. Less money, worse review,
@@ -1066,7 +1106,7 @@ T = loadTycoon();
 best = loadBest();
 bestEl.textContent = "$" + best;
 renderRating();
-renderTime();
+renderPace();
 renderWorker();
 buildTables();
 buildStations();

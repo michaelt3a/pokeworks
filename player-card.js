@@ -136,10 +136,12 @@
       label: "Order Up",
       color: "#fd9f27",
       best() {
-        // one key per mode; the card shows the best shift across both
+        // one key per mode; the card shows the best shift across all four
         const n = Math.max(
           lsNum("pokeworks-orderup-best-v2"),
-          lsNum("pokeworks-orderup-best-v2-hard")
+          lsNum("pokeworks-orderup-best-v2-hard"),
+          lsNum("pokeworks-orderup-best-v2-normal-rush"),
+          lsNum("pokeworks-orderup-best-v2-hard-rush")
         );
         return n ? { value: "$" + n.toLocaleString(), n: n } : null;
       },

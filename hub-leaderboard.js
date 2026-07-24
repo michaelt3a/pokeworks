@@ -63,6 +63,12 @@
     "ou-hard": {
       async fetch() { return this._score("orderup_scores", "mode=eq.hard", () => (local("pokeworks-orderup-lb", {}).hard || [])); },
     },
+    "ou-normal-rush": {
+      async fetch() { return this._score("orderup_scores", "mode=eq.normal-rush", () => (local("pokeworks-orderup-lb", {})["normal-rush"] || [])); },
+    },
+    "ou-hard-rush": {
+      async fetch() { return this._score("orderup_scores", "mode=eq.hard-rush", () => (local("pokeworks-orderup-lb", {})["hard-rush"] || [])); },
+    },
     "sw-speedrun": {
       stat: (e) => `${e.perfect}/9 · ${fmtTime(e.ms)}`,
       async fetch() {
@@ -112,8 +118,10 @@
       { label: "Speedrun", key: "sw-speedrun" },
     ] },
     { id: "ou", label: "Order Up", color: "#fd9f27", cats: [
-      { label: "Normal", key: "ou-normal" },
-      { label: "Hard", key: "ou-hard" },
+      { label: "Endless", key: "ou-normal" },
+      { label: "Endless Hard", key: "ou-hard" },
+      { label: "Rush", key: "ou-normal-rush" },
+      { label: "Rush Hard", key: "ou-hard-rush" },
     ] },
   ];
 

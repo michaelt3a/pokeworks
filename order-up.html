@@ -6,7 +6,7 @@
   <title>Order Up - Pokeworks</title>
   <meta name="description" content="Pokeworks Order Up rush minigame." />
   <link rel="stylesheet" href="styles.css?v=14" />
-  <link rel="stylesheet" href="order-up.css?v=11" />
+  <link rel="stylesheet" href="order-up.css?v=12" />
   <link rel="stylesheet" href="theme.css?v=3" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -33,7 +33,7 @@
           <span class="ou-star-num" id="ou-star-num">3.0</span>
         </div>
         <div class="score">
-          <span class="score-label">Time</span>
+          <span class="score-label" id="ou-time-label">Time</span>
           <span id="ou-time" class="score-value ou-time">2:30</span>
         </div>
         <div class="score">
@@ -85,6 +85,24 @@
             <button id="start-hard" class="btn btn-secondary" type="button">Hidden Recipes</button>
           </div>
         </div>
+
+        <!-- After picking a mode: play it relaxed or against the clock -->
+        <div class="ou-panel hidden" id="screen-variant">
+          <h1 class="overlay-title" id="variant-title">How do you want it?</h1>
+          <div class="ou-variants">
+            <button class="ou-var" id="var-endless" type="button">
+              <span class="ou-var-icon">🥢</span>
+              <strong>Endless</strong>
+              <small>No clock. Keep the line moving — three walkouts ends your shift.</small>
+            </button>
+            <button class="ou-var ou-var-rush" id="var-rush" type="button">
+              <span class="ou-var-icon">⏱️</span>
+              <strong>Rush</strong>
+              <small>2:30 on the clock. Bank everything you can before it runs out.</small>
+            </button>
+          </div>
+          <button class="ou-var-back" id="var-back" type="button">‹ Back</button>
+        </div>
         <div class="ou-panel hidden" id="screen-over">
           <h1 class="overlay-title">Shift Over</h1>
           <p class="ou-final" id="final"></p>
@@ -115,8 +133,8 @@
   <script src="supabase-config.js?v=2"></script>
   <script src="achievements.js?v=4"></script>
   <script src="bowl-render.js?v=3"></script>
-  <script src="daily.js?v=2"></script>
-  <script src="order-up.js?v=19"></script>
+  <script src="daily.js?v=3"></script>
+  <script src="order-up.js?v=20"></script>
   <script src="back-guard.js?v=1"></script>
   <script src="pwa.js?v=1"></script>
 </body>

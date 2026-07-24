@@ -16,7 +16,9 @@
   // run" wouldn't mean anything.
   const GAMES = [
     { id: "bowl", label: "Bowl Builder", file: "bowl-builder.html", color: "#ee435b", unit: "blocks", setting: "medium" },
-    { id: "ou", label: "Order Up", file: "order-up.html", color: "#fd9f27", unit: "$", setting: "normal" },
+    // Daily Order Up is always the timed Rush variant so every run is bounded
+    // and the day's scores stay comparable.
+    { id: "ou", label: "Order Up", file: "order-up.html", color: "#fd9f27", unit: "$", setting: "normal-rush" },
   ];
 
   function dayString(d) {
