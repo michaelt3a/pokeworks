@@ -596,6 +596,13 @@ body {
   color: #4caf72 !important;
   margin: 0 0 1rem;
 }
+/* `.hidden` is scoped per element in this file (the overlays use it to
+   cross-fade, so it can't be a blanket display:none). Without these two the
+   confirmation sat on screen from the moment the game-over panel opened. */
+.lb-entry.hidden,
+.lb-done.hidden {
+  display: none;
+}
 .lb-empty {
   list-style: none;
   color: var(--muted);

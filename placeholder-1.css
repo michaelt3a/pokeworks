@@ -664,6 +664,8 @@
   font-weight: 800;
   margin-bottom: 0.5rem;
 }
+/* Beats the display:block above, so the confirmation stays down until saved. */
+.sr-lb-done.hidden { display: none; }
 .sr-lb-entry-row {
   display: flex;
   gap: 0.5rem;
