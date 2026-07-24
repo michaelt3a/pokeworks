@@ -48,7 +48,7 @@ const finalEl = document.getElementById("final");
 
 // --- Constants ----------------------------------------------------------
 const MAX_CUSTOMERS = 3;
-const SHIFT_LEN = 150; // seconds per Rush shift
+const SHIFT_LEN = 240; // seconds per Rush shift (4:00)
 const MAX_WALKOUTS = 3; // an Endless shift survives until this many storm out
 const WAIT_DRAIN = 0.5; // patience rate for customers you're NOT serving
 // "-v2": bests are dollars now, so point-era records start over.
@@ -459,7 +459,8 @@ function updateCustomer(c) {
   c.barEl.style.width = frac * 100 + "%";
   c.barEl.style.background = frac > 0.5 ? "#4caf72" : frac > 0.25 ? "#fd9f27" : "#e2574c";
   c.el.classList.toggle("active", c.id === S.activeId);
-  c.el.classList.toggle("urgent", frac <= 0.25);
+  // The panic shake warns of a walkout — Rush has none, so no shake either.
+  c.el.classList.toggle("urgent", !isRush() && frac <= 0.25);
   const mood = moodFor(frac);
   if (mood !== c.mood) {
     c.mood = mood;
@@ -898,7 +899,13 @@ function frame(t) {
         // waiting drains slower. A comfy lobby slows the whole room down.
         const rate = (c.id === S.activeId ? 1 : WAIT_DRAIN) * lobbyMult();
         c.patience -= dt * rate;
-        if (c.patience <= 0) { loseCustomer(c); continue; }
+        if (c.patience <= 0) {
+          // In Rush the shift clock is the only timer — nobody storms out.
+          // Patience still drains silently underneath as the speed measure
+          // for tips (and the faces get grumpier the longer they wait).
+          if (isRush()) { c.patience = 0; }
+          else { loseCustomer(c); continue; }
+        }
         updateCustomer(c);
       }
       if (S.running) {
@@ -942,6 +949,9 @@ function startGame(mode) {
   bestEl.textContent = "$" + best;
   renderRating();
   timeLabelEl.textContent = isRush() ? "Time" : "Walkouts";
+  // Rush hides the per-customer patience bars — the shift clock is the only
+  // visible timer there.
+  customersEl.classList.toggle("rush", isRush());
   renderPace();
   renderWorker();
   updateCombo();
@@ -974,7 +984,7 @@ function endGame() {
   const rNow = rating();
   const arrow = rNow > S.ratingStart + 0.01 ? "📈" : rNow < S.ratingStart - 0.01 ? "📉" : "";
   finalEl.innerHTML =
-    `You made <strong>$${S.score}</strong> — served ${S.served}, lost ${S.lost}` +
+    `You made <strong>$${S.score}</strong> — served ${S.served}${isRush() ? "" : ", lost " + S.lost}` +
     ` <span class="ou-mode-tag">${isHard() ? "Hard" : "Normal"}${isRush() ? " · Rush" : " · Endless"}</span>.` +
     `<br>★ ${S.ratingStart.toFixed(1)} → <strong>${rNow.toFixed(1)}</strong> ${arrow}` +
     (isBest && S.score > 0 ? `<br><span class="ou-best">★ New best shift!</span>` : "");
