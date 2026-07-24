@@ -197,5 +197,10 @@
     selectGame(GAMES[0]);
   }
 
-  window.HubLeaderboard = { init, GAMES, fetchBoard, fmtTime };
+  // Drop cached boards (e.g. after a rename) so the next view refetches.
+  function clearCache() {
+    for (const k of Object.keys(cache)) delete cache[k];
+  }
+
+  window.HubLeaderboard = { init, GAMES, fetchBoard, fmtTime, clearCache };
 })();

@@ -40,6 +40,70 @@
     return n;
   }
 
+  // ------------------------------------------------- rename existing scores --
+  // Changing your name carries your scores with you: every table gets a PATCH
+  // moving rows from the old name (case-insensitive) to the new one, and the
+  // per-browser mirrors are renamed the same way. Needs an update RLS policy
+  // on each table; without one the PATCH silently matches nothing, which is a
+  // safe no-op.
+  const SB = window.POKEWORKS_SUPABASE || {};
+  const canRemote =
+    !!SB.url && !!SB.anonKey && !/YOUR_/.test(SB.url) && !/YOUR_/.test(SB.anonKey);
+  const SCORE_TABLES = ["bowl_scores", "orderup_scores", "sigworks_speedruns", "daily_scores"];
+
+  async function renameRemote(oldName, newName) {
+    if (!canRemote) return;
+    const headers = {
+      apikey: SB.anonKey,
+      Authorization: "Bearer " + SB.anonKey,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    };
+    await Promise.all(SCORE_TABLES.map(function (t) {
+      return fetch(
+        SB.url + "/rest/v1/" + t + "?name=ilike." + encodeURIComponent(oldName.trim()),
+        { method: "PATCH", headers: headers, body: JSON.stringify({ name: newName }) }
+      ).catch(function () { /* offline or blocked — mirrors still renamed */ });
+    }));
+  }
+
+  function renameInList(list, oldKey, newName) {
+    if (!Array.isArray(list)) return list;
+    for (const e of list) {
+      if (String(e.name).trim().toLowerCase() === oldKey) e.name = newName;
+    }
+    return list;
+  }
+  function renameLocalMirrors(oldName, newName) {
+    const oldKey = oldName.trim().toLowerCase();
+    try {
+      const bowl = lsJson("pokeworks-bowl-leaderboard");
+      if (bowl) {
+        for (const k of Object.keys(bowl)) renameInList(bowl[k], oldKey, newName);
+        localStorage.setItem("pokeworks-bowl-leaderboard", JSON.stringify(bowl));
+      }
+      const ou = lsJson("pokeworks-orderup-lb");
+      if (ou) {
+        for (const k of Object.keys(ou)) renameInList(ou[k], oldKey, newName);
+        localStorage.setItem("pokeworks-orderup-lb", JSON.stringify(ou));
+      }
+      const sw = lsJson("sigworks_speedrun_lb");
+      if (sw) localStorage.setItem("sigworks_speedrun_lb", JSON.stringify(renameInList(sw, oldKey, newName)));
+      const daily = lsJson("pokeworks-daily-lb");
+      if (daily) {
+        for (const k of Object.keys(daily)) renameInList(daily[k], oldKey, newName);
+        localStorage.setItem("pokeworks-daily-lb", JSON.stringify(daily));
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  async function renameEverywhere(oldName, newName) {
+    if (!oldName || !newName || oldName === newName) return;
+    renameLocalMirrors(oldName, newName);
+    await renameRemote(oldName, newName);
+    if (window.HubLeaderboard && HubLeaderboard.clearCache) HubLeaderboard.clearCache();
+  }
+
   function fmtTime(ms) {
     if (window.HubLeaderboard && HubLeaderboard.fmtTime) return HubLeaderboard.fmtTime(ms);
     const t = Math.max(0, ms);
@@ -184,11 +248,22 @@
 
     const input = bodyEl.querySelector("#pc-name-input");
     const commit = function () {
+      const prev = getName();
       const saved = setName(input.value);
       input.value = saved;
       bodyEl.querySelector(".pc-avatar").textContent = saved ? saved[0].toUpperCase() : "?";
       renderStrip();
-      fillRanks(bodyEl); // a new name means new placings
+      // A rename carries your existing leaderboard scores to the new name.
+      const hint = bodyEl.querySelector(".pc-hint");
+      if (prev && saved && prev !== saved) {
+        if (hint) hint.textContent = "Moving your scores to " + saved + "…";
+        renameEverywhere(prev, saved).then(function () {
+          if (hint) hint.textContent = "✓ Your scores now show as " + saved + ".";
+          fillRanks(bodyEl);
+        });
+      } else {
+        fillRanks(bodyEl); // a new name means new placings
+      }
     };
     input.addEventListener("change", commit);
     input.addEventListener("blur", commit);
