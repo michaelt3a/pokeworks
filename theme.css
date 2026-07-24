@@ -1,0 +1,178 @@
+/* Shared light/dark theming + the sun-moon toggle.
+   Dark is the original arcade look and stays the default; `data-theme="light"`
+   on <html> swaps the page-level variables. Panels and in-game scenes are
+   already light by design, so only the page chrome flips. */
+
+:root {
+  --on-dark: #f4ede3; /* text sitting on the page background */
+  --on-dark-muted: #b6c4c4;
+  --surface: #101818; /* raised panel (the hub sheets) */
+  --surface-line: rgba(255, 255, 255, 0.12);
+  --chip: rgba(255, 255, 255, 0.08); /* pill buttons on the page background */
+  --chip-line: rgba(255, 255, 255, 0.18);
+  --chip-hover: rgba(255, 255, 255, 0.15);
+  --scrim: rgba(0, 0, 0, 0.6);
+  --gold: #ffd15a;
+  --pattern-wash: rgba(10, 16, 16, 0); /* no wash on the dark page */
+}
+
+:root[data-theme="light"] {
+  --bg: #f3efe6; /* warm cream, from the brand's lettering */
+  --on-dark: #23302f;
+  --on-dark-muted: #5d6b6b;
+  --surface: #ffffff;
+  --surface-line: rgba(20, 45, 45, 0.12);
+  --chip: rgba(20, 45, 45, 0.06);
+  --chip-line: rgba(20, 45, 45, 0.16);
+  --chip-hover: rgba(20, 45, 45, 0.12);
+  --scrim: rgba(35, 50, 50, 0.45);
+  --gold: #8a6000; /* readable on cream */
+  --border: #dde9e9;
+  --pattern-wash: rgba(243, 239, 230, 0.62);
+}
+
+/* The teal sparkle pattern is tuned for a near-black page; on cream it shouts.
+   A translucent wash of the page colour sits over it in light mode — simpler
+   than a positioned overlay, which would fight body's background propagation. */
+body {
+  background-image: linear-gradient(var(--pattern-wash), var(--pattern-wash)),
+    url("bg-pattern.svg");
+  background-size: auto, 200px auto;
+  transition: background-color 0.45s ease, color 0.45s ease;
+}
+
+/* ---------------------------------------------------------------- toggle -- */
+.theme-toggle {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 500;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--chip);
+  border: 1.5px solid var(--chip-line);
+  color: var(--on-dark);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.theme-toggle:hover {
+  background: var(--chip-hover);
+  transform: scale(1.08);
+}
+
+.theme-toggle:active {
+  transform: scale(0.92);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.tt-svg {
+  width: 26px;
+  height: 26px;
+  overflow: visible;
+  /* the whole badge swings round as the sun sets */
+  transform: rotate(0deg);
+  transition: transform 0.6s cubic-bezier(0.5, 1.6, 0.4, 1);
+}
+
+:root[data-theme="dark"] .tt-svg {
+  transform: rotate(-135deg);
+}
+
+/* The disc: a full sun, or a crescent once the cut-out slides across it. */
+.tt-orb {
+  fill: #f6b93b;
+  transition: fill 0.5s ease;
+}
+
+:root[data-theme="dark"] .tt-orb {
+  fill: #dfe7f2;
+}
+
+.tt-cut {
+  transform-box: view-box;
+  transform-origin: center;
+  /* parked far off the disc in light mode, so the sun reads as a full circle */
+  transform: translate(13px, -13px);
+  transition: transform 0.55s cubic-bezier(0.5, 1.5, 0.4, 1);
+}
+
+:root[data-theme="dark"] .tt-cut {
+  transform: translate(0, 0);
+}
+
+/* Rays retract into the disc on the way to night. */
+.tt-rays {
+  stroke: #f6b93b;
+  stroke-width: 2;
+  stroke-linecap: round;
+  transform-box: view-box;
+  transform-origin: center;
+  transform: scale(1) rotate(0deg);
+  opacity: 1;
+  transition: transform 0.5s cubic-bezier(0.5, 1.5, 0.4, 1), opacity 0.35s ease;
+}
+
+:root[data-theme="dark"] .tt-rays {
+  transform: scale(0.2) rotate(-60deg);
+  opacity: 0;
+}
+
+/* A couple of stars fade in behind the moon. */
+.tt-stars {
+  fill: #dfe7f2;
+  opacity: 0;
+  transform-box: view-box;
+  transform-origin: center;
+  transform: scale(0.4);
+  transition: opacity 0.4s ease 0.15s, transform 0.5s cubic-bezier(0.5, 1.6, 0.4, 1) 0.15s;
+}
+
+:root[data-theme="dark"] .tt-stars {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tt-svg,
+  .tt-cut,
+  .tt-rays,
+  .tt-stars,
+  body {
+    transition-duration: 0.01ms;
+  }
+}
+
+/* Toast stacks live in the same corner — drop them below the toggle. The extra
+   `body` beats the achievement toast styles, which are injected at runtime and
+   would otherwise win on document order. */
+body .ss-toasts,
+body .pk-ach-toasts {
+  top: 66px;
+}
+
+@media (max-width: 640px) {
+  .theme-toggle {
+    top: 10px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+  }
+  .tt-svg {
+    width: 22px;
+    height: 22px;
+  }
+  body .ss-toasts,
+  body .pk-ach-toasts {
+    top: 54px;
+  }
+}

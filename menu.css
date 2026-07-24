@@ -158,8 +158,8 @@ body {
 }
 
 .hub-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  background: var(--chip);
+  border: 1.5px solid var(--chip-line);
   color: var(--on-dark);
   border-radius: 999px;
   padding: 0.6rem 1.4rem;
@@ -170,7 +170,7 @@ body {
 }
 
 .hub-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--chip-hover);
   border-color: var(--accent);
   transform: translateY(-2px);
 }
@@ -183,7 +183,7 @@ body {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--scrim);
   opacity: 0;
   transition: opacity 0.2s ease;
 }
@@ -203,8 +203,8 @@ body {
   max-height: 88vh;
   display: flex;
   flex-direction: column;
-  background: #101818;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--surface);
+  border: 1px solid var(--surface-line);
   border-bottom: none;
   border-radius: 18px 18px 0 0;
   box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
@@ -221,7 +221,7 @@ body {
   align-items: center;
   gap: 0.8rem;
   padding: 1.1rem 1.25rem 0.9rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--surface-line);
 }
 
 .sheet-title {
@@ -233,7 +233,7 @@ body {
 }
 
 .sheet-close {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--chip);
   border: none;
   color: var(--on-dark);
   width: 32px;
@@ -245,7 +245,7 @@ body {
 }
 
 .sheet-close:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--chip-hover);
 }
 
 .sheet-body {
@@ -267,7 +267,7 @@ body.sheet-lock {
 }
 
 .hlb-game {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--chip);
   border: 1.5px solid transparent;
   color: var(--on-dark);
   border-radius: 999px;
@@ -279,7 +279,7 @@ body.sheet-lock {
 }
 
 .hlb-game:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--chip-hover);
 }
 
 .hlb-game.active {
@@ -364,7 +364,7 @@ body.sheet-lock {
 
 /* Achievement wall */
 .ach-count {
-  color: #ffd15a;
+  color: var(--gold);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
@@ -386,7 +386,7 @@ body.sheet-lock {
 }
 
 .ach-item.locked {
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--chip);
   box-shadow: none;
 }
 
@@ -423,7 +423,7 @@ body.sheet-lock {
 }
 
 .ach-item.locked .ach-txt small {
-  color: #7d8d8d;
+  color: var(--on-dark-muted);
 }
 
 .ach-game {
@@ -439,7 +439,7 @@ body.sheet-lock {
 }
 
 .ach-item.locked .ach-game {
-  color: #6d7d7d;
+  color: var(--on-dark-muted);
 }
 
 .ach-game::before {

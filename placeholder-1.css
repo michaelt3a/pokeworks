@@ -1,7 +1,7 @@
 /* Signature Works recipe-builder game */
 
 .recipe-name {
-  color: #f4ede3;
+  color: var(--on-dark);
   font-weight: 700;
   font-size: 1rem;
 }
