@@ -55,6 +55,24 @@ body {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
+/* Tucked away mid-run so it can't be hit by accident (see back-guard.js).
+   Tapping outside the play area or pressing Escape brings it back. */
+.back-link {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.back-link.tucked {
+  opacity: 0;
+  transform: translateY(-14px) scale(0.9);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .back-link {
+    transition-duration: 0.01ms;
+  }
+}
+
 .back-link:hover {
   border-color: var(--accent);
   color: var(--accent);
