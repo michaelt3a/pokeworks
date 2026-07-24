@@ -62,11 +62,13 @@
     if (cssDone) return;
     cssDone = true;
     const st = document.createElement("style");
+    // Top-LEFT, sliding in from the left — review toasts (Order Up, Secret
+    // Shopper) own the top-right corner, so the two stacks never overlap.
     st.textContent =
-      ".pk-ach-toasts{position:fixed;top:14px;right:14px;z-index:400;display:flex;flex-direction:column;gap:10px;width:min(300px,86vw);pointer-events:none}" +
-      ".pk-ach-toast{display:flex;align-items:center;gap:10px;background:var(--surface,#161d1d);color:var(--on-dark,#f4ede3);border-radius:12px;border:1.5px solid var(--gold,#ffd15a);padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,.45);transform:translateX(120%);transition:transform .35s ease,opacity .3s ease}" +
+      ".pk-ach-toasts{position:fixed;top:14px;left:14px;z-index:400;display:flex;flex-direction:column;gap:10px;width:min(300px,86vw);pointer-events:none}" +
+      ".pk-ach-toast{display:flex;align-items:center;gap:10px;background:var(--surface,#161d1d);color:var(--on-dark,#f4ede3);border-radius:12px;border:1.5px solid var(--gold,#ffd15a);padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,.45);transform:translateX(-120%);transition:transform .35s ease,opacity .3s ease}" +
       ".pk-ach-toast.show{transform:none}" +
-      ".pk-ach-toast.hide{opacity:0;transform:translateX(40%)}" +
+      ".pk-ach-toast.hide{opacity:0;transform:translateX(-40%)}" +
       ".pk-ach-ico{font-size:1.5rem;line-height:1}" +
       ".pk-ach-txt{min-width:0}" +
       ".pk-ach-txt em{display:block;font-style:normal;font-size:.68rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--gold,#ffd15a)}" +

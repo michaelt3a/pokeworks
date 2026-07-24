@@ -51,19 +51,16 @@
 .ou-customers {
   position: relative;
   z-index: 1;
-  display: flex;
-  justify-content: flex-start;
-  align-items: flex-end;
-  gap: 16px;
   min-height: 150px;
-  padding-left: 6px;
-  /* new customers prepend on the left and push the line to the right */
-  transition: none;
+}
+/* Each customer stands in front of their assigned table. */
+.ou-cust {
+  position: absolute;
+  bottom: 0;
+  transform: translateX(-50%);
 }
 
 .ou-cust {
-  position: relative;
-  flex: 0 0 auto;
   width: 112px;
   background: transparent;
   border: none;
@@ -77,8 +74,8 @@
   transition: transform 0.15s ease, opacity 0.3s ease;
 }
 
-.ou-cust:hover { transform: translateY(-2px); }
-.ou-cust.active { transform: translateY(-3px) scale(1.06); }
+.ou-cust:hover { transform: translateX(-50%) translateY(-2px); }
+.ou-cust.active { transform: translateX(-50%) translateY(-3px) scale(1.06); }
 
 /* order speech bubble */
 .ou-bubble {
@@ -145,13 +142,13 @@
 }
 
 .ou-cust.urgent { animation: ou-shake 0.4s ease-in-out infinite; }
-.ou-cust.served { opacity: 0; transform: translateY(-14px) scale(0.9); pointer-events: none; }
-.ou-cust.leaving { opacity: 0; transform: translateY(18px) scale(0.9); pointer-events: none; }
+.ou-cust.served { opacity: 0; transform: translateX(-50%) translateY(-14px) scale(0.9); pointer-events: none; }
+.ou-cust.leaving { opacity: 0; transform: translateX(-50%) translateY(18px) scale(0.9); pointer-events: none; }
 
 @keyframes ou-shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-2px); }
-  75% { transform: translateX(2px); }
+  0%, 100% { transform: translateX(-50%); }
+  25% { transform: translateX(calc(-50% - 2px)); }
+  75% { transform: translateX(calc(-50% + 2px)); }
 }
 
 /* glass sneeze-guard line between the customers and the counter */
@@ -473,20 +470,25 @@
 }
 
 /* Kai, the auto-worker, at the right end of the line */
-.ou-worker {
+.ou-workers {
   position: absolute;
   right: 8px;
-  bottom: 16px;
+  bottom: 30px;
   z-index: 2;
-  width: 58px;
-  height: 112px;
+  display: flex;
+  flex-direction: row-reverse;
+  gap: 6px;
+  pointer-events: none;
+}
+.ou-workers.hidden { display: none; }
+.ou-worker {
+  width: 46px;
+  height: 96px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 3px;
-  pointer-events: none;
 }
-.ou-worker.hidden { display: none; }
 .ou-worker-tag {
   font-size: 0.58rem;
   font-weight: 800;
@@ -640,7 +642,7 @@
 @media (max-width: 640px) {
   .ou-shop { grid-template-columns: 1fr; }
   .ou-stars { font-size: 0.9rem; }
-  .ou-worker { width: 46px; height: 92px; right: 4px; }
+  .ou-workers { right: 4px; bottom: 24px; } .ou-worker { width: 40px; height: 84px; }
   .ou-serve { font-size: 0.74rem; padding: 0.4rem 0.85rem; }
 }
 
@@ -849,4 +851,22 @@
 }
 @media (max-width: 640px) {
   .ou-endshift { font-size: 0.64rem; padding: 0.35rem 0.7rem; }
+}
+
+
+/* Packed rooms: everyone shrinks a notch so five tables still read cleanly. */
+.ou-scene[data-tables="4"] .ou-cust { width: 96px; }
+.ou-scene[data-tables="4"] .ou-stick { width: 66px; height: 118px; }
+.ou-scene[data-tables="4"] .ou-pat { width: 74px; }
+.ou-scene[data-tables="5"] .ou-cust { width: 82px; }
+.ou-scene[data-tables="5"] .ou-stick { width: 56px; height: 102px; }
+.ou-scene[data-tables="5"] .ou-pat { width: 62px; }
+.ou-scene[data-tables="5"] .ou-bubble { font-size: 0.66rem; padding: 4px 8px; }
+.ou-scene[data-tables="5"] .ou-nametag { font-size: 0.54rem; }
+@media (max-width: 640px) {
+  .ou-scene[data-tables="4"] .ou-cust { width: 76px; }
+  .ou-scene[data-tables="4"] .ou-stick { width: 52px; height: 96px; }
+  .ou-scene[data-tables="5"] .ou-cust { width: 64px; }
+  .ou-scene[data-tables="5"] .ou-stick { width: 44px; height: 84px; }
+  .ou-scene[data-tables="5"] .ou-bubble { font-size: 0.58rem; }
 }

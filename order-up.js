@@ -48,7 +48,7 @@ const againBtn = document.getElementById("again-btn");
 const finalEl = document.getElementById("final");
 
 // --- Constants ----------------------------------------------------------
-const MAX_CUSTOMERS = 3;
+const BASE_TABLES = 3; // more via the tables upgrade
 const SHIFT_LEN = 240; // seconds per Rush shift (4:00)
 const MAX_WALKOUTS = 3; // an Endless shift survives until this many storm out
 const WAIT_DRAIN = 0.5; // patience rate for customers you're NOT serving
@@ -72,11 +72,22 @@ const TIERS = {
 };
 
 // Upgrades bought with banked money between shifts.
+const WORKER_NAMES = ["Kai", "Mai", "Rei"];
+const WORKER_SCOOP = 6; // seconds per scoop, per worker
 const UPGRADES = {
   worker: {
-    icon: "🧑‍🍳", name: "Hire Kai",
-    desc: ["Auto-worker scoops an ingredient every 8s", "Kai speeds up: every 5.5s", "Turbo Kai: every 3.5s"],
-    costs: [250, 600, 1400],
+    icon: "🧑‍🍳", name: "Hire staff",
+    desc: [
+      "Kai joins the line — he preps other customers' bowls",
+      "Mai makes it a crew of two",
+      "Rei completes the kitchen brigade",
+    ],
+    costs: [250, 700, 1600],
+  },
+  tables: {
+    icon: "🪑", name: "More tables",
+    desc: ["A 4th table — one more customer at a time", "A 5th table — a truly packed house"],
+    costs: [300, 800],
   },
   prices: {
     icon: "💎", name: "Premium ingredients",
@@ -99,7 +110,7 @@ const UPGRADES = {
 function freshTycoon() {
   return {
     bank: 0,
-    upgrades: { worker: 0, prices: 0, lobby: 0, ads: 0 },
+    upgrades: { worker: 0, prices: 0, lobby: 0, ads: 0, tables: 0 },
     reviews: [],
     franchises: 0, // permanent +10% earnings each (see the Franchise shop card)
     life: { served: 0, perfect: 0, walkouts: 0, earned: 0, shifts: 0 },
@@ -131,7 +142,8 @@ function rating() {
 // Upgrade effects. All of them sit out Daily Challenge runs so the day's board
 // compares raw skill, not who's richest.
 function upgradeLvl(k) { return isDailyRun ? 0 : T.upgrades[k] || 0; }
-function workerInterval() { return [0, 8, 5.5, 3.5][upgradeLvl("worker")] || 0; }
+function workerCount() { return upgradeLvl("worker"); } // 0-3 hires
+function tableCount() { return BASE_TABLES + upgradeLvl("tables"); }
 function priceMult() { return 1 + 0.2 * upgradeLvl("prices"); }
 function lobbyMult() { return 1 - 0.1 * upgradeLvl("lobby"); }
 function adsMult() { return 1 - 0.15 * upgradeLvl("ads"); }
@@ -158,7 +170,7 @@ const S = {
   lost: 0,
   combo: 0,
   timeLeft: SHIFT_LEN,
-  workerT: 0,
+  workerT: [],
   ratingStart: 3,
   customers: [],
   activeId: null,
@@ -382,25 +394,39 @@ function tableSVG() {
   );
 }
 
-function buildTables() {
-  const spots = [
-    { pos: "left:2%", bottom: 60, w: 100 },
-    { pos: "left:38%", bottom: 72, w: 84 },
-    { pos: "right:2%", bottom: 58, w: 100 },
-  ];
+// Each table is a seat for one customer; the tables upgrade adds more. Spots
+// spread evenly, alternating depth so the room reads as a floor, not a row.
+function tableSpotPct(i, n) {
+  return ((i + 0.5) / n) * 100;
+}
+function buildTables(n) {
   tablesEl.innerHTML = "";
-  for (const s of spots) {
+  const w = Math.min(100, Math.round(340 / n) + 30);
+  for (let i = 0; i < n; i++) {
     const t = document.createElement("div");
     t.className = "ou-table";
-    t.style.cssText = s.pos + ";bottom:" + s.bottom + "px;width:" + s.w + "px";
+    t.style.cssText =
+      "left:" + tableSpotPct(i, n) + "%;transform:translateX(-50%);" +
+      "bottom:" + (i % 2 ? 72 : 58) + "px;width:" + w + "px";
     t.innerHTML = tableSVG();
     tablesEl.appendChild(t);
   }
+  // Customers scale down a notch when the room is packed.
+  document.querySelector(".ou-scene").dataset.tables = n;
+}
+// First open table, or -1 when the room is full.
+function freeTable() {
+  for (let i = 0; i < tableCount(); i++) {
+    if (!S.customers.some((c) => c.tableIdx === i)) return i;
+  }
+  return -1;
 }
 
 // --- Customers ----------------------------------------------------------
 function addCustomer() {
-  if (S.customers.length >= MAX_CUSTOMERS) return;
+  if (S.customers.length >= tableCount()) return;
+  const table = freeTable();
+  if (table < 0) return;
   const recipe = pickRecipe();
   // A pending critic/inspector claims this walk-in (plain tier — their whole
   // point is the review, not the check).
@@ -414,6 +440,7 @@ function addCustomer() {
     name: recipe.name,
     custName: special === "critic" ? "The Critic" : special === "inspector" ? "Inspector" : CUST_NAMES[Math.floor(Math.random() * CUST_NAMES.length)],
     tier,
+    tableIdx: table,
     special,
     sel: emptySel(),
     patience: maxP,
@@ -440,10 +467,12 @@ function buildCustomer(c) {
     `<span class="ou-nametag ${tagClass}">${tagIcon ? tagIcon + " " : ""}${c.custName}</span>` +
     `<span class="ou-pat"><i data-role="bar"></i></span>`;
   el.addEventListener("click", () => { SFX.pick(); setActive(c.id); });
+  // Stand at the assigned table.
+  el.style.left = tableSpotPct(c.tableIdx, tableCount()) + "%";
   c.el = el;
   c.barEl = el.querySelector('[data-role="bar"]');
   c.stickEl = el.querySelector(".ou-stick");
-  customersEl.prepend(el); // newest on the left
+  customersEl.appendChild(el);
   updateCustomer(c);
 }
 
@@ -818,29 +847,41 @@ function workerSVG() {
   );
 }
 
-function renderWorker() {
-  const hired = workerInterval() > 0;
-  workerEl.classList.toggle("hidden", !hired);
-  if (hired && !workerEl.innerHTML) {
-    workerEl.innerHTML =
-      `<span class="ou-worker-tag">🧑‍🍳 Kai</span>` +
+// The crew stands together at the end of the line, one figure per hire.
+function renderWorkers() {
+  const n = workerCount();
+  workerEl.classList.toggle("hidden", n === 0);
+  workerEl.innerHTML = "";
+  for (let i = 0; i < n; i++) {
+    const w = document.createElement("span");
+    w.className = "ou-worker";
+    w.innerHTML =
+      `<span class="ou-worker-tag">🧑‍🍳 ${WORKER_NAMES[i]}</span>` +
       `<span class="ou-worker-stick">${workerSVG()}</span>`;
+    workerEl.appendChild(w);
   }
 }
 
-// One scoop: add a missing correct ingredient to the active customer's bowl.
-function workerAct() {
-  const c = activeCustomer();
-  if (!c || !S.running) return;
+// Worker i's scoop: they cover the customers YOU aren't serving — each worker
+// takes a different one (round-robin), falling back to the active customer
+// only when there's no one else to help.
+function workerAct(i) {
+  if (!S.running) return;
+  const others = S.customers.filter((c) => c.id !== S.activeId && !isComplete(c));
+  const c = others.length ? others[i % others.length] : activeCustomer();
+  if (!c) return;
   for (const cat of CATS) {
     for (const name of c.recipe.items[cat]) {
       if (!c.sel[cat].has(name)) {
         c.sel[cat].add(name);
         SFX.add();
-        workerEl.classList.remove("scooping");
-        void workerEl.offsetWidth; // restart the animation
-        workerEl.classList.add("scooping");
-        renderTicket();
+        const fig = workerEl.children[i];
+        if (fig) {
+          fig.classList.remove("scooping");
+          void fig.offsetWidth; // restart the animation
+          fig.classList.add("scooping");
+        }
+        if (c.id === S.activeId) renderTicket();
         updatePans();
         updateCustomer(c);
         if (isComplete(c)) serve(c);
@@ -890,10 +931,12 @@ function frame(t) {
     } else {
       // Kai, the auto-worker: every few seconds he scoops one correct
       // ingredient into the active customer's bowl.
-      const wi = workerInterval();
-      if (wi) {
-        S.workerT += dt;
-        if (S.workerT >= wi) { S.workerT = 0; workerAct(); }
+      const crew = workerCount();
+      if (crew) {
+        for (let i = 0; i < crew; i++) {
+          S.workerT[i] = (S.workerT[i] || 0) + dt;
+          if (S.workerT[i] >= WORKER_SCOOP) { S.workerT[i] = 0; workerAct(i); }
+        }
       }
       for (const c of S.customers.slice()) {
         // The customer you're serving loses patience at full speed; everyone
@@ -911,7 +954,7 @@ function frame(t) {
       }
       if (S.running) {
         S.spawnTimer -= dt;
-        if (S.spawnTimer <= 0 && S.customers.length < MAX_CUSTOMERS) {
+        if (S.spawnTimer <= 0 && S.customers.length < tableCount()) {
           addCustomer();
           S.spawnTimer = spawnInterval();
         }
@@ -935,7 +978,7 @@ function startGame(mode) {
   S.lost = 0;
   S.combo = 0;
   S.timeLeft = SHIFT_LEN;
-  S.workerT = 0;
+  S.workerT = WORKER_NAMES.map((_, i) => i * 2); // stagger the crew
   S.ratingStart = rating();
   S.elapsed = 0;
   S.rushUntil = 0;
@@ -953,10 +996,11 @@ function startGame(mode) {
   // Rush hides the per-customer patience bars — the shift clock is the only
   // visible timer there.
   customersEl.classList.toggle("rush", isRush());
+  buildTables(tableCount()); // the tables upgrade may have changed the room
   endShiftBtn.classList.remove("hidden");
   resetEndShiftBtn();
   renderPace();
-  renderWorker();
+  renderWorkers();
   updateCombo();
   overlay.classList.add("hidden");
   addCustomer(); // first customer right away
@@ -1063,7 +1107,7 @@ function renderShop() {
         SFX.bell();
         if (window.PokeAch) PokeAch.unlock("ou-upgrade");
         renderShop();
-        renderWorker(); // hiring Kai shows him immediately
+        renderWorkers(); // hiring Kai shows him immediately
       });
     }
     card.appendChild(btn);
@@ -1090,13 +1134,13 @@ function renderShop() {
     if (!franchiseReady() || T.bank < FRANCHISE_COST) return;
     T.bank -= FRANCHISE_COST;
     T.franchises = (T.franchises || 0) + 1;
-    T.upgrades = { worker: 0, prices: 0, lobby: 0, ads: 0 };
+    T.upgrades = { worker: 0, prices: 0, lobby: 0, ads: 0, tables: 0 };
     T.reviews = []; // a new store earns its own reputation
     saveTycoon();
     SFX.serve();
     if (window.PokeAch) PokeAch.unlock("ou-franchise");
     renderRating();
-    renderWorker(); // Kai heads to the new store too
+    renderWorkers(); // Kai heads to the new store too
     renderShop();
   });
   fr.appendChild(frBtn);
@@ -1300,8 +1344,8 @@ best = loadBest();
 bestEl.textContent = "$" + best;
 renderRating();
 renderPace();
-renderWorker();
-buildTables();
+renderWorkers();
+buildTables(tableCount());
 buildStations();
 renderPans();
 B.draw(bctx, BW, BH, emptySel());
