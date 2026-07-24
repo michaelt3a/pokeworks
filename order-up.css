@@ -652,3 +652,53 @@
   .hud-right .score-value { font-size: 1.02rem; }
   .hud-right .score:last-child { display: none; }
 }
+
+/* Fractional star meter: a grey ★★★★★ with a gold copy clipped to the exact
+   rating width, so 4.2 literally fills four stars and a fifth of the fifth. */
+.ou-stars {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ou-starbar {
+  position: relative;
+  display: inline-block;
+  font-size: 1.05rem;
+  letter-spacing: 2px;
+  line-height: 1;
+}
+.ou-star-base { color: #d5d9dc; }
+.ou-star-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  overflow: hidden;
+  white-space: nowrap;
+  color: #f5a623;
+  width: 60%;
+  transition: width 0.5s ease;
+}
+.ou-star-num {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #f5a623;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The cash floater grew a tip line */
+.ou-cash {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+}
+.ou-cash small {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #1b9092;
+  text-shadow: 0 1px 0 #fff;
+}
+
+@media (max-width: 640px) {
+  .ou-starbar { font-size: 0.9rem; letter-spacing: 1px; }
+  .ou-star-num { font-size: 0.78rem; }
+}

@@ -21,6 +21,8 @@ const BW = bowlCanvas.width;
 const BH = bowlCanvas.height;
 const comboEl = document.getElementById("combo");
 const starsEl = document.getElementById("ou-stars");
+const starFillEl = document.getElementById("ou-star-fill");
+const starNumEl = document.getElementById("ou-star-num");
 const timeEl = document.getElementById("ou-time");
 const scoreEl = document.getElementById("score");
 const bestEl = document.getElementById("best");
@@ -429,21 +431,28 @@ function bowlAccuracy(c) {
   return { size, correct, wrong, picked, frac, perfect: correct === size && wrong === 0 };
 }
 
+// The check plus the tip. The tip is where speed lives: it scales with how
+// much patience the customer still has when the bowl lands (up to 60% of the
+// check for an instant perfect serve), shrinks with mistakes, and rich tiers
+// tip on their bigger checks.
 function payoutFor(c, a) {
-  let m = (10 + a.size * 1.5) * a.frac;
-  if (a.perfect) {
-    const speedFrac = Math.max(0, c.patience / c.maxPatience);
-    m += 8 * speedFrac + S.combo * 2; // tip for speed + combo bonus
-  }
-  m *= c.tier.pay * priceMult();
-  if (S.mode === "hard") m *= 1.5; // memory bonus
-  else if (S.mode === "baby") m *= 0.6;
-  return a.frac > 0 ? Math.max(1, Math.round(m)) : 0;
+  const price = (10 + a.size * 1.5) * a.frac;
+  const speedFrac = Math.max(0, c.patience / c.maxPatience);
+  let tip = price * 0.6 * speedFrac * a.frac;
+  if (!a.perfect) tip *= 0.5; // a fast-but-wrong bowl still earns a little
+  let m = price + tip + (a.perfect ? S.combo * 2 : 0);
+  const mult =
+    c.tier.pay * priceMult() * (S.mode === "hard" ? 1.5 : S.mode === "baby" ? 0.6 : 1);
+  m *= mult;
+  tip *= mult;
+  if (a.frac <= 0) return { money: 0, tip: 0 };
+  return { money: Math.max(1, Math.round(m)), tip: Math.round(tip) };
 }
 
 function serve(c) {
   const a = bowlAccuracy(c);
-  const money = payoutFor(c, a);
+  const pay = payoutFor(c, a);
+  const money = pay.money;
   S.score += money;
   S.served++;
   if (window.PokeAch) {
@@ -458,7 +467,7 @@ function serve(c) {
   updateCombo();
   if (a.perfect) SFX.serve();
   else { SFX.serve(); SFX.remove(); } // a slightly sour note under the ring
-  cashFloater(money, a.perfect);
+  cashFloater(money, pay.tip, a.perfect);
   postReview(c, reviewForServe(c, a));
   removeCustomer(c, "served");
 }
@@ -526,8 +535,13 @@ function postReview(c, r) {
 }
 
 // --- Rendering ----------------------------------------------------------
+// Five real stars that fill to the exact rating — 4.2 shows four full stars
+// and a fifth that's a fifth full — with the number alongside.
 function renderRating() {
-  starsEl.textContent = "★ " + rating().toFixed(1);
+  const r = rating();
+  starFillEl.style.width = (r / 5) * 100 + "%";
+  starNumEl.textContent = r.toFixed(1);
+  starsEl.setAttribute("aria-label", "Restaurant rating: " + r.toFixed(1) + " out of 5 stars");
 }
 function renderMoney() {
   scoreEl.textContent = "$" + S.score;
@@ -538,14 +552,17 @@ function renderTime() {
   if (timeEl.textContent !== str) timeEl.textContent = str;
   timeEl.classList.toggle("urgent", t <= 15);
 }
-// A little "+$12" that floats up off the bowl when a serve pays out.
-function cashFloater(money, perfect) {
+// A little "+$12" that floats up off the bowl when a serve pays out, with the
+// tip called out underneath so fast serves visibly pay better.
+function cashFloater(money, tip, perfect) {
   if (!bowlWrapEl || money <= 0) return;
   const f = document.createElement("span");
   f.className = "ou-cash" + (perfect ? " perfect" : "");
-  f.textContent = "+$" + money;
+  f.innerHTML =
+    "+$" + money +
+    (tip >= 1 ? `<small>incl. $${tip} tip${tip >= 8 ? "!" : ""}</small>` : "");
   bowlWrapEl.appendChild(f);
-  setTimeout(() => f.remove(), 950);
+  setTimeout(() => f.remove(), 1150);
 }
 
 function updateCombo() {
