@@ -1293,3 +1293,15 @@
 .ou-modes.hidden { display: none; } /* new players see the tutorial CTA instead */
 .ou-tut-replay { margin-top: 0.4rem; font-size: 0.82rem; }
 .ou-tut-replay.hidden { display: none; }
+
+/* A faint floor spot marking each seat (the café tables were removed — guests
+   bring their own chair, drawn into the figure). */
+.ou-seatspot {
+  position: absolute;
+  bottom: 30px;
+  transform: translateX(-50%);
+  width: 46px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(120, 140, 143, 0.26), transparent 70%);
+}

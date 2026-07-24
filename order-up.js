@@ -638,16 +638,15 @@ function tableSpotPct(i, n) {
   return 34 + ((i + 0.5) / n) * 64;
 }
 function buildTables(n) {
+  // Seated guests now bring their own chair (drawn into the figure), so the
+  // old background café tables are gone — they read as "sitting on the table."
+  // A faint floor spot per seat marks where a guest will sit.
   tablesEl.innerHTML = "";
-  const w = Math.min(92, Math.round(300 / n) + 24);
   for (let i = 0; i < n; i++) {
-    const t = document.createElement("div");
-    t.className = "ou-table";
-    t.style.cssText =
-      "left:" + tableSpotPct(i, n) + "%;transform:translateX(-50%);" +
-      "bottom:" + (i % 2 ? 72 : 58) + "px;width:" + w + "px";
-    t.innerHTML = tableSVG();
-    tablesEl.appendChild(t);
+    const spot = document.createElement("div");
+    spot.className = "ou-seatspot";
+    spot.style.cssText = "left:" + tableSpotPct(i, n) + "%";
+    tablesEl.appendChild(spot);
   }
   // Customers scale down a notch when the room is packed.
   document.querySelector(".ou-scene").dataset.tables = n;
