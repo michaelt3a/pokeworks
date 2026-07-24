@@ -50,10 +50,22 @@ const finalEl = document.getElementById("final");
 
 // --- Constants ----------------------------------------------------------
 const BASE_TABLES = 3; // more via the tables upgrade
-const SHIFT_LEN = 240; // seconds per Rush shift (4:00)
-const ENDLESS_LEN = 360; // seconds per Endless shift (6:00) — closes on its own
-const MAX_WALKOUTS = 3; // an Endless shift also ends early if this many storm out
-function shiftLen() { return isRush() ? SHIFT_LEN : ENDLESS_LEN; }
+// The store runs on a wall clock: a shift compresses the workday into real
+// play time, the HUD shows the time of day, and the shift ends at closing.
+const OPEN_MIN = 11 * 60; // doors open at 11:00 AM
+function closeMin() { return isRush() ? 14 * 60 : 21 * 60; } // Rush: lunch to 2:00; Full Shift to 9:00
+function shiftLen() { return isRush() ? 300 : 480; } // real seconds the shift lasts
+const MAX_WALKOUTS = 3; // a Full Shift also ends early if this many storm out
+// Time of day (in minutes) for the current point in the shift.
+function clockMin() {
+  return OPEN_MIN + (1 - Math.max(0, S.timeLeft) / shiftLen()) * (closeMin() - OPEN_MIN);
+}
+function fmtClock(mins) {
+  const h = Math.floor(mins / 60), m = Math.floor(mins % 60);
+  const ap = h >= 12 ? "PM" : "AM";
+  const hh = h % 12 === 0 ? 12 : h % 12;
+  return hh + ":" + String(m).padStart(2, "0") + " " + ap;
+}
 const WAIT_DRAIN = 0.5; // patience rate for customers you're NOT serving
 // "-v2": bests are dollars now, so point-era records start over.
 const BEST_KEY = "pokeworks-orderup-best-v2";
@@ -232,7 +244,7 @@ const S = {
   served: 0,
   lost: 0,
   combo: 0,
-  timeLeft: SHIFT_LEN,
+  timeLeft: 0, // set to shiftLen() when a shift starts
   workerT: [],
   waiterT: [],
   shift: { tips: 0, perfects: 0, bestCombo: 0 },
@@ -339,8 +351,8 @@ function pickRecipe() {
 // stages, and the ramp is gentle so late-shift customers stay reasonable.
 function maxPatienceFor(recipe, tier) {
   const t = (tier && tier.pat) || 1;
-  const ramp = Math.max(0.82, 1 - S.served * 0.012);
-  return Math.round((recipeSize(recipe) * 3 + 34) * ramp * t);
+  const ramp = Math.max(0.85, 1 - S.served * 0.009);
+  return Math.round((recipeSize(recipe) * 4 + 46) * ramp * t);
 }
 function spawnInterval() {
   const base = Math.max(4.5, 10.5 - S.served * 0.22);
@@ -407,7 +419,7 @@ function pickTier() {
 function moodFor(frac) {
   return frac > 0.5 ? "ok" : frac > 0.25 ? "warn" : "mad";
 }
-function stickmanSVG(shirt, mood) {
+function stickmanSVG(shirt, mood, sitting) {
   const mouth =
     mood === "ok" ? '<path d="M26 31 Q32 37 38 31" fill="none" stroke="#7a4a2a" stroke-width="2" stroke-linecap="round"/>' :
     mood === "warn" ? '<path d="M27 33 L37 33" fill="none" stroke="#7a4a2a" stroke-width="2" stroke-linecap="round"/>' :
@@ -416,13 +428,20 @@ function stickmanSVG(shirt, mood) {
     ? '<path d="M24 18 L30 20 M40 18 L34 20" stroke="#5a3a20" stroke-width="2" stroke-linecap="round"/>'
     : "";
   // A proper stick figure: thin line body (tinted the customer's colour),
-  // round head with a face. No bulky torso.
+  // round head with a face. Seated guests bend their knees onto the chair.
   const L = 'stroke="' + shirt + '" stroke-width="5" stroke-linecap="round"';
+  const legs = sitting
+    ? // thighs forward (roughly level), shins straight down — a seated pose
+      '<line x1="32" y1="79" x2="50" y2="80" ' + L + "/>" +
+      '<line x1="50" y1="80" x2="50" y2="106" ' + L + "/>" +
+      '<line x1="32" y1="79" x2="44" y2="83" ' + L + "/>" +
+      '<line x1="44" y1="83" x2="44" y2="108" ' + L + "/>"
+    : // standing
+      '<line x1="32" y1="78" x2="20" y2="112" ' + L + "/>" +
+      '<line x1="32" y1="78" x2="44" y2="112" ' + L + "/>";
   return (
     '<svg viewBox="0 0 64 120" width="100%" height="100%" aria-hidden="true">' +
-    // legs
-    '<line x1="32" y1="78" x2="20" y2="112" ' + L + "/>" +
-    '<line x1="32" y1="78" x2="44" y2="112" ' + L + "/>" +
+    legs +
     // spine
     '<line x1="32" y1="40" x2="32" y2="79" ' + L + "/>" +
     // arms
@@ -498,7 +517,7 @@ function freeTable() {
 }
 // Where an unseated guest stands at the entrance (a short queue on the left).
 function doorSpotPct(i) {
-  return 2 + i * 10;
+  return 5 + i * 13;
 }
 // Sit a waiting guest at the first free table. Returns false if the room's full.
 function seatCustomer(c) {
@@ -514,6 +533,7 @@ function seatCustomer(c) {
   c.el.classList.remove("unseated");
   c.el.classList.add("seated");
   c.el.style.left = tableSpotPct(table, tableCount()) + "%";
+  c.stickEl.innerHTML = stickmanSVG(c.shirt, c.mood, true); // sit down
   SFX.pick();
   reflowDoor();
   if (S.activeId == null) setActive(c.id);
@@ -565,7 +585,7 @@ function buildCustomer(c) {
   el.innerHTML =
     `<span class="ou-bubble">${c.name}</span>` +
     `<span class="ou-seatme">Seat me!</span>` +
-    `<span class="ou-stick">${stickmanSVG(c.shirt, c.mood)}</span>` +
+    `<span class="ou-stick">${stickmanSVG(c.shirt, c.mood, c.seated)}</span>` +
     `<span class="ou-nametag ${tagClass}">${tagIcon ? tagIcon + " " : ""}${c.custName}</span>` +
     `<span class="ou-pat"><i data-role="bar"></i></span>`;
   // Tap a waiting guest to seat them; tap a seated guest to serve them.
@@ -601,7 +621,7 @@ function updateCustomer(c) {
   const mood = moodFor(frac);
   if (mood !== c.mood) {
     c.mood = mood;
-    c.stickEl.innerHTML = stickmanSVG(c.shirt, mood);
+    c.stickEl.innerHTML = stickmanSVG(c.shirt, mood, c.seated);
   }
 }
 
@@ -728,7 +748,7 @@ function loseCustomer(c) {
   removeCustomer(c, "leaving");
   renderPace();
   // In Endless, walkouts are the end condition.
-  if (!isRush() && S.lost >= MAX_WALKOUTS && S.running) endGame();
+  if (!isRush() && S.lost >= MAX_WALKOUTS && S.running) endGame("walkouts");
 }
 
 // --- Reviews & the star rating (the Secret Shopper toast, behind a counter) --
@@ -799,17 +819,17 @@ function renderRating() {
 function renderMoney() {
   scoreEl.textContent = "$" + S.score;
 }
-// The pace tile shows the closing clock in both modes. Endless also carries
-// its walkout count in the tile's label.
+// The pace tile shows the time of day on the store's wall clock. Full Shift
+// also carries its walkout count in the tile's label.
 function renderPace() {
-  const t = Math.max(0, Math.ceil(S.timeLeft));
-  const str = Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
+  const str = fmtClock(clockMin());
   if (timeEl.textContent !== str) timeEl.textContent = str;
+  const nearClose = S.timeLeft <= shiftLen() * 0.12; // last stretch before closing
   if (isRush()) {
-    timeEl.classList.toggle("urgent", t <= 15);
+    timeEl.classList.toggle("urgent", nearClose);
   } else {
     if (timeLabelEl) timeLabelEl.textContent = "🚶 " + S.lost + "/" + MAX_WALKOUTS;
-    timeEl.classList.toggle("urgent", t <= 15 || S.lost >= MAX_WALKOUTS - 1);
+    timeEl.classList.toggle("urgent", nearClose || S.lost >= MAX_WALKOUTS - 1);
   }
 }
 // A little "+$12" that floats up off the bowl when a serve pays out, with the
@@ -1086,7 +1106,7 @@ function frame(t) {
       S.nextEventAt = S.elapsed + 45 + Math.random() * 25;
     }
     if (S.timeLeft <= 0) {
-      endGame();
+      endGame("close");
     } else {
       // Kai, the auto-worker: every few seconds he scoops one correct
       // ingredient into the active customer's bowl.
@@ -1166,7 +1186,7 @@ function startGame(mode) {
   renderMoney();
   bestEl.textContent = "$" + best;
   renderRating();
-  timeLabelEl.textContent = "Time"; // Endless swaps this for its walkout count
+  timeLabelEl.textContent = isRush() ? "Lunch" : "Time"; // Full Shift swaps in its walkout count
   // Rush hides the per-customer patience bars; the shift clock is the only
   // visible timer there.
   customersEl.classList.toggle("rush", isRush());
@@ -1185,7 +1205,7 @@ function startGame(mode) {
   updatePans();
 }
 
-function endGame() {
+function endGame(reason) {
   S.running = false;
   S.paused = false;
   endShiftBtn.classList.add("hidden");
@@ -1220,7 +1240,12 @@ function endGame() {
   }
   const rNow = rating();
   const arrow = rNow > S.ratingStart + 0.01 ? "📈" : rNow < S.ratingStart - 0.01 ? "📉" : "";
+  const headline =
+    reason === "close" ? "🔔 Closing time! " :
+    reason === "walkouts" ? "🚪 Too many walkouts. " :
+    reason === "early" ? "🔚 Clocked out early. " : "";
   finalEl.innerHTML =
+    headline +
     `<strong>${S.score}</strong> banked ` +
     `<span class="ou-mode-tag">${isHard() ? "Hard" : "Normal"}${isRush() ? " · Rush" : " · Full Shift"}</span>` +
     (isBest && S.score > 0 ? ` <span class="ou-best">★ New best shift!</span>` : "");
@@ -1554,7 +1579,7 @@ endShiftBtn.addEventListener("click", () => {
     return;
   }
   resetEndShiftBtn();
-  endGame();
+  endGame("early");
 });
 
 // Leaderboard submission wiring (boards are viewed on the hub)

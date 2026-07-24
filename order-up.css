@@ -452,6 +452,7 @@
   letter-spacing: 0.02em;
   white-space: nowrap;
 }
+.ou-time { font-size: 1.05rem; } /* fits a wall-clock time like "11:00 AM" */
 .ou-time.urgent { color: #e2574c; }
 
 /* Customer nametags — the wealth tier at a glance */
@@ -1062,8 +1063,18 @@
 }
 
 /* -------- Seating: entrance, waiting guests, waiters ---------------------- */
-/* Guests walk from the door to their table when seated. */
-.ou-cust { transition: transform 0.15s ease, opacity 0.3s ease, left 0.45s ease; }
+/* Guests walk from the door to their table when seated, and sit down. */
+.ou-cust { transition: transform 0.15s ease, opacity 0.3s ease, left 0.45s ease, bottom 0.4s ease; }
+
+/* Waiting guests are smaller and tucked together at the entrance so their name
+   tags and patience bars no longer overlap each other. */
+.ou-cust.unseated .ou-stick { width: 54px; height: 96px; }
+.ou-cust.unseated .ou-pat { width: 52px; }
+.ou-cust.unseated .ou-seatme { font-size: 0.56rem; padding: 2px 7px; }
+.ou-cust.unseated .ou-nametag { font-size: 0.52rem; padding: 1px 6px; }
+
+/* Seated guests lift up onto the chair at their table (they sit, legs bent). */
+.ou-cust.seated { bottom: 30px; }
 
 /* The doormat at the entrance (left of the dining floor). */
 .ou-entrance {
