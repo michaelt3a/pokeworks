@@ -41,12 +41,18 @@ body {
   transition: background-color 0.45s ease, color 0.45s ease;
 }
 
-/* ---------------------------------------------------------------- toggle -- */
-.theme-toggle {
+/* ----------------------------------------------------- corner tray + toggle */
+/* Holds the mute and theme buttons in the top-right of every page. */
+.pk-corner {
   position: fixed;
   top: 14px;
   right: 14px;
   z-index: 500;
+  display: flex;
+  gap: 8px;
+}
+
+.corner-btn {
   width: 42px;
   height: 42px;
   display: grid;
@@ -56,23 +62,30 @@ body {
   background: var(--chip);
   border: 1.5px solid var(--chip-line);
   color: var(--on-dark);
+  font-size: 1.05rem;
+  line-height: 1;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
-.theme-toggle:hover {
+.corner-btn:hover {
   background: var(--chip-hover);
   transform: scale(1.08);
 }
 
-.theme-toggle:active {
+.corner-btn:active {
   transform: scale(0.92);
 }
 
-.theme-toggle:focus-visible {
+.corner-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
+}
+
+/* Muted reads as "off" rather than just a different glyph. */
+.sound-toggle.is-muted {
+  opacity: 0.6;
 }
 
 .tt-svg {
@@ -161,11 +174,15 @@ body .pk-ach-toasts {
 }
 
 @media (max-width: 640px) {
-  .theme-toggle {
+  .pk-corner {
     top: 10px;
     right: 10px;
+    gap: 6px;
+  }
+  .corner-btn {
     width: 36px;
     height: 36px;
+    font-size: 0.95rem;
   }
   .tt-svg {
     width: 22px;

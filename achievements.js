@@ -38,6 +38,7 @@
     { id: "ss-perfect", game: "Secret Shopper", icon: "🏅", title: "Flawless Audit", how: "Finish a shift with a score of 100%." },
     // Arcade-wide
     { id: "meta-all", game: "Arcade", icon: "🕹️", title: "Arcade Regular", how: "Play all 4 games at least once." },
+    { id: "meta-streak7", game: "Arcade", icon: "🔥", title: "Seven Straight", how: "Play on 7 days in a row." },
   ];
 
   function load() {

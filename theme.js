@@ -65,11 +65,24 @@
     );
   }
 
+  // Shared corner tray, also used by the mute button. Whichever script runs
+  // first creates it.
+  function corner() {
+    var c = document.getElementById("pk-corner");
+    if (!c) {
+      c = document.createElement("div");
+      c.id = "pk-corner";
+      c.className = "pk-corner";
+      document.body.appendChild(c);
+    }
+    return c;
+  }
+
   function mount() {
     if (document.getElementById("theme-toggle")) return;
     var btn = document.createElement("button");
     btn.id = "theme-toggle";
-    btn.className = "theme-toggle";
+    btn.className = "corner-btn theme-toggle";
     btn.type = "button";
     btn.innerHTML = svg();
     btn.addEventListener("click", function () {
@@ -77,7 +90,7 @@
       remember(next);
       apply(next);
     });
-    document.body.appendChild(btn);
+    corner().appendChild(btn);
     apply(root.getAttribute("data-theme")); // label the freshly-made button
   }
 

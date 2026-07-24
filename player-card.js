@@ -94,6 +94,14 @@
     },
   ];
 
+  function streak() {
+    return window.PokeStreak ? PokeStreak.get() : { count: 0, best: 0 };
+  }
+  function streakText(s) {
+    if (!s.count) return s.best ? "Best streak " + s.best + " days" : "No streak yet";
+    return s.count + " day" + (s.count === 1 ? "" : "s") + " in a row";
+  }
+
   function achProgress() {
     const defs = (window.PokeAch && PokeAch.DEFS) || [];
     const map = lsJson("pokeworks-achievements") || {};
@@ -126,12 +134,14 @@
     const name = getName();
     const a = achProgress();
     const pct = a.total ? Math.round((a.got / a.total) * 100) : 0;
+    const s = streak();
     stripEl.innerHTML =
       '<span class="pc-avatar">' + escapeHtml(name ? name[0].toUpperCase() : "?") + "</span>" +
       '<span class="pc-id">' +
       '<strong class="pc-name">' + escapeHtml(name || "Set your name") + "</strong>" +
       '<span class="pc-sub">' + a.got + " / " + a.total + " achievements</span>" +
       "</span>" +
+      (s.count ? '<span class="pc-flame" title="' + streakText(s) + '">🔥 ' + s.count + "</span>" : "") +
       '<span class="pc-bar" aria-hidden="true"><i style="width:' + pct + '%"></i></span>' +
       '<span class="pc-go">View stats ›</span>';
   }
@@ -141,6 +151,7 @@
     const name = getName();
     const a = achProgress();
     const pct = a.total ? Math.round((a.got / a.total) * 100) : 0;
+    const st = streak();
 
     const rows = STATS.map(function (s) {
       const b = s.best();
@@ -165,6 +176,11 @@
       "</span></div>" +
       '<div class="pc-ach"><span class="pc-ach-top"><strong>Achievements</strong><em>' +
       a.got + " / " + a.total + '</em></span><span class="pc-bar"><i style="width:' + pct + '%"></i></span></div>' +
+      '<div class="pc-streak"><span class="pc-streak-ico">🔥</span>' +
+      '<span class="pc-id"><strong>' + escapeHtml(streakText(st)) + "</strong>" +
+      '<span class="pc-hint">' +
+      (st.best ? "Longest run: " + st.best + " day" + (st.best === 1 ? "" : "s") : "Play on back-to-back days to build one.") +
+      "</span></span></div>" +
       '<div class="pc-stats">' + rows + "</div>";
 
     const input = bodyEl.querySelector("#pc-name-input");

@@ -570,6 +570,7 @@ function clearFeedback() {
 }
 
 function selectRecipe(recipe) {
+  if (window.PokeStreak) PokeStreak.mark();
   stopTimer();
   run = null;
   setMode("practice");
@@ -914,6 +915,7 @@ function stopTimer() {
 }
 
 function startSpeedrun() {
+  if (window.PokeStreak) PokeStreak.mark();
   run = { order: shuffled(RECIPES), index: 0, results: [], startMs: performance.now() };
   setMode("speedrun");
   overlay.classList.add("hidden");

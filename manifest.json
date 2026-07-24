@@ -1,0 +1,22 @@
+{
+  "name": "Pokeworks Minigames",
+  "short_name": "Pokeworks",
+  "description": "A little arcade of Pokeworks minigames.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a1010",
+  "theme_color": "#0a1010",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Bowl Builder", "url": "./bowl-builder.html" },
+    { "name": "Signature Works", "url": "./placeholder-1.html" },
+    { "name": "Order Up", "url": "./order-up.html" },
+    { "name": "Secret Shopper", "url": "./secret-shopper.html" }
+  ]
+}

@@ -493,6 +493,7 @@ function frame(t) {
 
 // --- Lifecycle ----------------------------------------------------------
 function startGame(mode) {
+  if (window.PokeStreak) PokeStreak.mark();
   ensureAudio();
   S.customers.forEach((c) => c.el && c.el.remove());
   S.mode = mode || "normal";

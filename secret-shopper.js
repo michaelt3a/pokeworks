@@ -1050,6 +1050,7 @@ function scoopStage(recipe, secs) {
 
 // --- The shift ----------------------------------------------------------
 async function runShift() {
+  if (window.PokeStreak) PokeStreak.mark();
   if (running) return;
   running = true;
   audit = [];

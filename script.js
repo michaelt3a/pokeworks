@@ -872,16 +872,26 @@ function updateMuteBtn() {
   muteBtn.textContent = state.muted ? "🔇 Muted" : "🔊 Sound";
 }
 
+// Mute is arcade-wide now (sound.js owns it, and there's a button in the corner
+// of every page). This in-game button is a second handle on the same switch.
 function loadMute() {
-  try {
-    state.muted = localStorage.getItem(MUTE_KEY) === "1";
-  } catch (e) {
-    state.muted = false;
+  if (window.PokeSound) {
+    state.muted = PokeSound.isMuted();
+  } else {
+    try {
+      state.muted = localStorage.getItem(MUTE_KEY) === "1";
+    } catch (e) {
+      state.muted = false;
+    }
   }
   updateMuteBtn();
 }
 
 function toggleMute() {
+  if (window.PokeSound) {
+    PokeSound.toggle(); // the change event below syncs state.muted
+    return;
+  }
   state.muted = !state.muted;
   try {
     localStorage.setItem(MUTE_KEY, state.muted ? "1" : "0");
@@ -890,6 +900,12 @@ function toggleMute() {
   }
   updateMuteBtn();
 }
+
+// Keep the in-game button in step when the corner button is used.
+document.addEventListener("pokesound:change", (e) => {
+  state.muted = !!(e.detail && e.detail.muted);
+  updateMuteBtn();
+});
 
 // --- Game lifecycle -----------------------------------------------------
 
@@ -912,6 +928,7 @@ function spawnActive() {
 }
 
 function startGame(difficulty) {
+  if (window.PokeStreak) PokeStreak.mark();
   ensureAudio();
   state.running = true;
   state.paused = false;

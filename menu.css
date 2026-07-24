@@ -238,6 +238,32 @@ body {
   color: var(--on-dark-muted);
 }
 
+/* Daily play streak */
+.pc-flame {
+  flex: none;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--gold);
+  white-space: nowrap;
+}
+
+.pc-streak {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 1.1rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 12px;
+  background: var(--chip);
+  border-left: 4px solid var(--gold);
+  color: var(--on-dark);
+}
+
+.pc-streak-ico {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
 /* Inside the sheet */
 .pc-head {
   display: flex;
