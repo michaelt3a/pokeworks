@@ -32,7 +32,6 @@ const auditRows = document.getElementById("audit-rows");
 const gradeEl = document.getElementById("grade");
 const againBtn = document.getElementById("again-btn");
 const bestEl = document.getElementById("best");
-const toastsEl = document.getElementById("toasts");
 
 // --- Config ---------------------------------------------------------------
 const GUESTS_PER_SHIFT = 3;
@@ -182,47 +181,6 @@ const REPLY_TABLE = ["Delicious, thank you!", "So good. I'm telling everyone.", 
 const REPLY_SLOW = ["That took a while...", "I was about to send a search party.", "Finally..."];
 const LEAVE_LINES = ["That's it. I'm leaving!", "Forget it, I'll go somewhere else.", "Unbelievable. I'm out."];
 
-// Review comment fragments, keyed by audit item.
-const REVIEW_BAD = {
-  greetFast: "Walked in and nobody said a word.",
-  greetWarm: "The greeting was... not a greeting.",
-  preOrder: "The counter person was kind of rude.",
-  firstTime: "Zero warmth, no small talk at all.",
-  menuKnow: "They don't even know their own menu.",
-  upsell: "Service felt like a drive-thru.",
-  rewards: "Never mentioned the rewards app.",
-  fastOrder: "Waited forever for one bowl.",
-  parting: "Not even a thank-you on the way out.",
-  dining: "Nobody checked on our table.",
-  spill: "There was a spill on the floor the whole visit.",
-  phone: "They let the phone ring off the hook.",
-  walkin: "Watched them ignore another guest.",
-  complaint: "They got my order wrong and barely cared.",
-  smalltalk: "They clearly weren't listening to me.",
-};
-const REVIEW_GOOD = {
-  greetFast: "Greeted the second I walked in!",
-  greetWarm: "So welcoming!",
-  preOrder: "Super friendly at the counter.",
-  firstTime: "They made me feel like a regular.",
-  menuKnow: "They know the menu inside out.",
-  upsell: "Great recommendations!",
-  rewards: "Hooked me up with the rewards app.",
-  fastOrder: "My bowl came out fast.",
-  parting: "Sweetest goodbye.",
-  dining: "They even checked on our table!",
-  spill: "Handled a spill like a pro.",
-  phone: "Juggled a phone call politely.",
-  walkin: "Made sure everyone felt seen.",
-  complaint: "Fixed a mixup instantly.",
-  smalltalk: "Great conversation!",
-};
-const REVIEW_LEFT = [
-  "Walked out before I even got my food. Never again.",
-  "Three strikes and I was OUT of there.",
-  "Couldn't get a single response out of them. Left.",
-];
-
 // --- State ------------------------------------------------------------------
 let running = false;
 let audit = []; // { guest, key, label, pts, got }
@@ -269,7 +227,6 @@ const SFX = {
   ring: () => { tone({ freq: 1180, type: "square", dur: 0.09, gain: 0.05 }); tone({ freq: 1180, type: "square", dur: 0.09, gain: 0.05, delay: 0.16 }); },
   crash: () => tone({ freq: 180, type: "sawtooth", slideTo: 70, dur: 0.3, gain: 0.12 }),
   storm: () => arp([330, 262, 196], { type: "sawtooth", dur: 0.16, gain: 0.11, step: 0.09 }),
-  toast: () => { tone({ freq: 740, type: "sine", dur: 0.09, gain: 0.09 }); tone({ freq: 988, type: "sine", dur: 0.12, gain: 0.08, delay: 0.08 }); },
   start: () => arp([392, 523, 659], { dur: 0.12, step: 0.06 }),
   fanfare: () => arp([523, 659, 784, 1047, 1319], { dur: 0.2, gain: 0.13, step: 0.09 }),
 };
@@ -724,47 +681,6 @@ const EVENTS = {
   },
 };
 
-// --- Reviews ---------------------------------------------------------------
-function starRow(n) {
-  let s = "";
-  for (let i = 1; i <= 5; i++) s += `<span class="${i <= n ? "on" : "off"}">★</span>`;
-  return s;
-}
-function showReview(idx) {
-  const meta = guestMeta[idx];
-  const rows = audit.filter((a) => a.guest === idx);
-  let earned = 0, total = 0;
-  for (const a of rows) { total += a.pts; if (a.got) earned += a.pts; }
-  const pct = total ? earned / total : 0;
-  let stars, comment;
-
-  if (meta.leftEarly) {
-    stars = 0;
-    comment = pick(REVIEW_LEFT);
-  } else {
-    stars = Math.max(0, Math.min(5, Math.round(pct * 5)));
-    const gots = rows.filter((a) => a.got && REVIEW_GOOD[a.key]).map((a) => REVIEW_GOOD[a.key]);
-    const misses = rows.filter((a) => !a.got && REVIEW_BAD[a.key]).map((a) => REVIEW_BAD[a.key]);
-    if (stars >= 4) comment = pickN(gots, 2).join(" ") || "Lovely visit!";
-    else if (stars <= 2) comment = pickN(misses, 2).join(" ") || "Not great.";
-    else comment = ((pickN(gots, 1)[0] || "") + " But... " + (pickN(misses, 1)[0] || "")).trim();
-  }
-
-  const toast = document.createElement("div");
-  toast.className = "ss-toast";
-  toast.innerHTML =
-    `<div class="ss-toast-head"><span>Guest ${idx + 1} left a review</span>` +
-    `<span class="ss-toast-stars">${starRow(stars)}</span></div>` +
-    `<div class="ss-toast-body">“${comment}”</div>`;
-  toastsEl.appendChild(toast);
-  SFX.toast();
-  requestAnimationFrame(() => toast.classList.add("show"));
-  setTimeout(() => {
-    toast.classList.add("hide");
-    setTimeout(() => toast.remove(), 400);
-  }, 6500);
-}
-
 // --- One guest's visit ------------------------------------------------------
 async function runGuest(idx, personaKey) {
   const P = PERSONALITIES[personaKey];
@@ -827,7 +743,6 @@ async function runGuest(idx, personaKey) {
     await wait(300);
     doorEl.classList.remove("open");
     hush();
-    showReview(idx);
   };
 
   note(`Guest ${idx + 1} of ${GUESTS_PER_SHIFT} is arriving…`);
@@ -983,7 +898,6 @@ async function runGuest(idx, personaKey) {
     await exitDoor(custWrap, 1600);
   }
   hush();
-  showReview(idx);
 }
 
 // Tap-to-scoop stage.
@@ -1056,7 +970,6 @@ async function runShift() {
   audit = [];
   guestMeta = [];
   shopperIdx = Math.floor(Math.random() * GUESTS_PER_SHIFT);
-  toastsEl.innerHTML = "";
 
   empStick.innerHTML = stickmanSVG("#ee435b", "ok");
   placeAt(empWrap, 74);
