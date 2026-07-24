@@ -13,30 +13,31 @@
     "Arcade": "#ffd15a",
   };
 
+  // `how` is the literal requirement — what you have to do to earn it.
   const DEFS = [
     // Bowl Builder
-    { id: "bb-first", game: "Bowl Builder", icon: "🥣", title: "First Scoop", quip: "Every bowl begins somewhere." },
-    { id: "bb-25", game: "Bowl Builder", icon: "🏗️", title: "High Roller", quip: "25 high. The air is getting thin." },
-    { id: "bb-50", game: "Bowl Builder", icon: "🌃", title: "Skyscraper Chef", quip: "50 blocks. OSHA would like a word." },
-    { id: "bb-combo10", game: "Bowl Builder", icon: "🎯", title: "Perfect Ten", quip: "Ten perfects straight. Surgical." },
-    { id: "bb-shield", game: "Bowl Builder", icon: "🛡️", title: "Saved by the Bowl", quip: "That was entirely too close." },
-    { id: "bb-power5", game: "Bowl Builder", icon: "🍚", title: "Collector", quip: "Five power-ups in one run. Greedy." },
+    { id: "bb-first", game: "Bowl Builder", icon: "🥣", title: "First Scoop", how: "Stack 1 block." },
+    { id: "bb-25", game: "Bowl Builder", icon: "🏗️", title: "High Roller", how: "Stack 25 blocks in one run." },
+    { id: "bb-50", game: "Bowl Builder", icon: "🌃", title: "Skyscraper Chef", how: "Stack 50 blocks in one run." },
+    { id: "bb-combo10", game: "Bowl Builder", icon: "🎯", title: "Perfect Ten", how: "Land 10 perfect drops in a row." },
+    { id: "bb-shield", game: "Bowl Builder", icon: "🛡️", title: "Saved by the Bowl", how: "Survive a miss with the Shield power-up." },
+    { id: "bb-power5", game: "Bowl Builder", icon: "🍚", title: "Collector", how: "Collect 5 power-ups in one run." },
     // Signature Works
-    { id: "sw-first", game: "Signature Works", icon: "📖", title: "Memorized One", quip: "One down, eight to go." },
-    { id: "sw-nohints", game: "Signature Works", icon: "🙈", title: "No Peeking", quip: "Who needs hints anyway?" },
-    { id: "sw-speedrun", game: "Signature Works", icon: "⏱️", title: "Full Menu", quip: "All nine bowls. Respect." },
-    { id: "sw-perfectrun", game: "Signature Works", icon: "🧠", title: "Photographic Memory", quip: "The menu fears you now." },
+    { id: "sw-first", game: "Signature Works", icon: "📖", title: "Memorized One", how: "Build 1 signature bowl correctly." },
+    { id: "sw-nohints", game: "Signature Works", icon: "🙈", title: "No Peeking", how: "Build a signature bowl using 0 hints." },
+    { id: "sw-speedrun", game: "Signature Works", icon: "⏱️", title: "Full Menu", how: "Finish a Speedrun of all 9 bowls." },
+    { id: "sw-perfectrun", game: "Signature Works", icon: "🧠", title: "Photographic Memory", how: "Finish a Speedrun with all 9 bowls perfect." },
     // Order Up
-    { id: "ou-first", game: "Order Up", icon: "🔔", title: "Open for Business", quip: "The first customer is the scariest." },
-    { id: "ou-10", game: "Order Up", icon: "🌊", title: "Rush Survivor", quip: "Ten bowls in one shift. The line never stood a chance." },
-    { id: "ou-hard", game: "Order Up", icon: "🤫", title: "From Memory", quip: "Five bowls, zero tickets. Show-off." },
+    { id: "ou-first", game: "Order Up", icon: "🔔", title: "Open for Business", how: "Serve 1 customer." },
+    { id: "ou-10", game: "Order Up", icon: "🌊", title: "Rush Survivor", how: "Serve 10 customers in one shift." },
+    { id: "ou-hard", game: "Order Up", icon: "🤫", title: "From Memory", how: "Serve 5 customers in Hidden Recipes mode." },
     // Secret Shopper
-    { id: "ss-first", game: "Secret Shopper", icon: "🕵️", title: "Clocked In", quip: "You survived the audit. Barely." },
-    { id: "ss-pass", game: "Secret Shopper", icon: "📋", title: "Passing Grade", quip: "Corporate nods approvingly." },
-    { id: "ss-noleave", game: "Secret Shopper", icon: "🚪", title: "Zero Doors Slammed", quip: "Everyone left happy. Through the door, normally." },
-    { id: "ss-perfect", game: "Secret Shopper", icon: "🏅", title: "Flawless Audit", quip: "Framed and hung in the break room." },
+    { id: "ss-first", game: "Secret Shopper", icon: "🕵️", title: "Clocked In", how: "Finish a shift." },
+    { id: "ss-pass", game: "Secret Shopper", icon: "📋", title: "Passing Grade", how: "Finish a shift with a score of 80% or higher." },
+    { id: "ss-noleave", game: "Secret Shopper", icon: "🚪", title: "Zero Doors Slammed", how: "Finish a shift without any guest leaving early." },
+    { id: "ss-perfect", game: "Secret Shopper", icon: "🏅", title: "Flawless Audit", how: "Finish a shift with a score of 100%." },
     // Arcade-wide
-    { id: "meta-all", game: "Arcade", icon: "🕹️", title: "Arcade Regular", quip: "You've tried everything on the menu." },
+    { id: "meta-all", game: "Arcade", icon: "🕹️", title: "Arcade Regular", how: "Play all 4 games at least once." },
   ];
 
   function load() {
@@ -84,7 +85,7 @@
     el.innerHTML =
       `<span class="pk-ach-ico">${def.icon}</span>` +
       `<span class="pk-ach-txt"><em>Achievement unlocked</em>` +
-      `<strong>${def.title}</strong><small>${def.quip}</small></span>`;
+      `<strong>${def.title}</strong><small>${def.how}</small></span>`;
     container().appendChild(el);
     requestAnimationFrame(() => el.classList.add("show"));
     setTimeout(() => {
@@ -124,7 +125,7 @@
       item.className = "ach-item" + (got ? " unlocked" : " locked");
       item.innerHTML =
         `<span class="ach-ico">${got ? d.icon : "🔒"}</span>` +
-        `<span class="ach-txt"><strong>${d.title}</strong><small>${d.quip}</small>` +
+        `<span class="ach-txt"><strong>${d.title}</strong><small>${d.how}</small>` +
         `<i class="ach-game" style="--g:${GAME_COLOR[d.game]}">${d.game}</i></span>`;
       gridEl.appendChild(item);
     }

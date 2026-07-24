@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=11" />
+  <link rel="stylesheet" href="menu.css?v=12" />
 </head>
 <body>
   <main class="hub page-content">
@@ -53,35 +53,87 @@
       </a>
     </div>
 
-    <!-- Central leaderboard -->
-    <section class="hlb">
-      <h2 class="hlb-title">🏆 Leaderboards</h2>
-      <div class="hlb-games" id="hlb-games"></div>
-      <div class="hlb-cats" id="hlb-cats"></div>
-      <ol class="lb-list hlb-list" id="hlb-list"></ol>
-    </section>
-
-    <!-- Achievement wall -->
-    <section class="ach">
-      <div class="ach-head">
-        <h2 class="ach-title">Achievements</h2>
-        <span class="ach-count" id="ach-count">0 / 0</span>
-      </div>
-      <div class="ach-grid" id="ach-grid"></div>
-    </section>
+    <div class="hub-actions">
+      <button class="hub-btn" type="button" data-open="sheet-lb">🏆 Leaderboards</button>
+      <button class="hub-btn" type="button" data-open="sheet-ach">🏅 Achievements</button>
+    </div>
   </main>
+
+  <!-- Leaderboards (opens from the hub button) -->
+  <div class="sheet" id="sheet-lb" hidden>
+    <div class="sheet-panel" role="dialog" aria-modal="true" aria-label="Leaderboards">
+      <div class="sheet-head">
+        <h2 class="sheet-title">🏆 Leaderboards</h2>
+        <button class="sheet-close" type="button" data-close aria-label="Close">✕</button>
+      </div>
+      <div class="sheet-body">
+        <div class="hlb-games" id="hlb-games"></div>
+        <div class="hlb-cats" id="hlb-cats"></div>
+        <ol class="lb-list hlb-list" id="hlb-list"></ol>
+      </div>
+    </div>
+  </div>
+
+  <!-- Achievement wall (opens from the hub button) -->
+  <div class="sheet" id="sheet-ach" hidden>
+    <div class="sheet-panel" role="dialog" aria-modal="true" aria-label="Achievements">
+      <div class="sheet-head">
+        <h2 class="sheet-title">🏅 Achievements</h2>
+        <span class="ach-count" id="ach-count">0 / 0</span>
+        <button class="sheet-close" type="button" data-close aria-label="Close">✕</button>
+      </div>
+      <div class="sheet-body">
+        <div class="ach-grid" id="ach-grid"></div>
+      </div>
+    </div>
+  </div>
 
   <script src="transitions.js?v=3"></script>
   <script src="supabase-config.js?v=2"></script>
-  <script src="achievements.js?v=1"></script>
+  <script src="achievements.js?v=2"></script>
   <script src="hub-leaderboard.js?v=1"></script>
   <script>
-    PokeAch.renderWall(document.getElementById("ach-grid"), document.getElementById("ach-count"));
-    HubLeaderboard.init(
-      document.getElementById("hlb-games"),
-      document.getElementById("hlb-cats"),
-      document.getElementById("hlb-list")
-    );
+    // Both panels build their contents the first time they're opened.
+    const built = {};
+    const build = {
+      "sheet-ach": () =>
+        PokeAch.renderWall(document.getElementById("ach-grid"), document.getElementById("ach-count")),
+      "sheet-lb": () =>
+        HubLeaderboard.init(
+          document.getElementById("hlb-games"),
+          document.getElementById("hlb-cats"),
+          document.getElementById("hlb-list")
+        ),
+    };
+
+    function openSheet(id) {
+      const el = document.getElementById(id);
+      if (!built[id]) { built[id] = true; build[id](); }
+      el.hidden = false;
+      void el.offsetWidth; // flush the un-hidden state so the transition runs
+      el.classList.add("open");
+      document.body.classList.add("sheet-lock");
+    }
+    function closeSheet(el) {
+      el.classList.remove("open");
+      document.body.classList.remove("sheet-lock");
+      setTimeout(() => { el.hidden = true; }, 200);
+    }
+
+    for (const btn of document.querySelectorAll("[data-open]")) {
+      btn.addEventListener("click", () => openSheet(btn.dataset.open));
+    }
+    for (const el of document.querySelectorAll(".sheet")) {
+      el.addEventListener("click", (e) => {
+        // click the backdrop or the ✕ to dismiss
+        if (e.target === el || e.target.closest("[data-close]")) closeSheet(el);
+      });
+    }
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      const open = document.querySelector(".sheet.open");
+      if (open) closeSheet(open);
+    });
   </script>
 </body>
 </html>
