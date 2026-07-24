@@ -27,6 +27,7 @@ const timeEl = document.getElementById("ou-time");
 const scoreEl = document.getElementById("score");
 const bestEl = document.getElementById("best");
 const serveBtn = document.getElementById("serve-btn");
+const endShiftBtn = document.getElementById("end-shift-btn");
 const workerEl = document.getElementById("worker");
 const toastsEl = document.getElementById("ou-toasts");
 const bowlWrapEl = document.querySelector(".ou-bowl-wrap");
@@ -952,6 +953,8 @@ function startGame(mode) {
   // Rush hides the per-customer patience bars — the shift clock is the only
   // visible timer there.
   customersEl.classList.toggle("rush", isRush());
+  endShiftBtn.classList.remove("hidden");
+  resetEndShiftBtn();
   renderPace();
   renderWorker();
   updateCombo();
@@ -964,6 +967,8 @@ function startGame(mode) {
 
 function endGame() {
   S.running = false;
+  endShiftBtn.classList.add("hidden");
+  resetEndShiftBtn();
   SFX.over();
   // Whoever's still in line just heads home — the shift is over, no penalty.
   for (const c of S.customers.slice()) removeCustomer(c, "leaving");
@@ -1214,6 +1219,28 @@ serveBtn.addEventListener("click", () => {
   if (!c || !S.running) return;
   if (bowlAccuracy(c).picked === 0) return; // no serving an empty bowl
   serve(c);
+});
+
+// End Shift: clock out whenever you like — earnings bank as usual. Two taps,
+// so a stray thumb can't end a run: the first arms it, the second confirms.
+let endShiftArmTimer = null;
+function resetEndShiftBtn() {
+  clearTimeout(endShiftArmTimer);
+  endShiftBtn.classList.remove("armed");
+  endShiftBtn.textContent = "🔚 End Shift";
+}
+endShiftBtn.addEventListener("click", () => {
+  if (!S.running) return;
+  if (!endShiftBtn.classList.contains("armed")) {
+    endShiftBtn.classList.add("armed");
+    endShiftBtn.textContent = "Clock out?";
+    SFX.pick();
+    clearTimeout(endShiftArmTimer);
+    endShiftArmTimer = setTimeout(resetEndShiftBtn, 2500);
+    return;
+  }
+  resetEndShiftBtn();
+  endGame();
 });
 
 // Leaderboard submission wiring (boards are viewed on the hub)

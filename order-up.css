@@ -821,3 +821,32 @@
 
 /* Rush: the shift clock is the only visible timer — no patience bars. */
 .ou-customers.rush .ou-pat { display: none; }
+
+/* End Shift: clock out early. Mirrors the Serve pill on the other corner. */
+.ou-endshift {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  z-index: 5;
+  background: rgba(42, 47, 49, 0.82);
+  color: #e8eef0;
+  border: none;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.4rem 0.85rem;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.ou-endshift:hover { transform: translateY(-2px); background: rgba(42, 47, 49, 0.95); }
+.ou-endshift.armed { background: var(--accent); animation: ou-arm 0.3s ease; }
+.ou-endshift.hidden { display: none; }
+@keyframes ou-arm {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+@media (max-width: 640px) {
+  .ou-endshift { font-size: 0.64rem; padding: 0.35rem 0.7rem; }
+}
