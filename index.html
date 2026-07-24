@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokeworks Minigames</title>
   <meta name="description" content="Pokeworks minigames. Pick one to play." />
-  <link rel="stylesheet" href="menu.css?v=16" />
+  <link rel="stylesheet" href="menu.css?v=17" />
   <link rel="stylesheet" href="theme.css?v=3" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -27,8 +27,10 @@
 
     <section class="dc" id="dc"></section>
 
-    <div class="cards">
-      <a class="card" href="bowl-builder.html">
+    <!-- data-latest names the game whose card wears the ✨ Updated tag.
+         Move it whenever a game ships an update. -->
+    <div class="cards" data-latest="order-up">
+      <a class="card" data-game="bowl-builder" href="bowl-builder.html">
         <div class="card-icon icon-bowl"></div>
         <div class="card-body">
           <h2 class="card-title">Bowl Builder</h2>
@@ -37,7 +39,7 @@
         </div>
       </a>
 
-      <a class="card" href="placeholder-1.html">
+      <a class="card" data-game="signature-works" href="placeholder-1.html">
         <div class="card-icon icon-signature"></div>
         <div class="card-body">
           <h2 class="card-title">Signature Works</h2>
@@ -46,7 +48,7 @@
         </div>
       </a>
 
-      <a class="card" href="order-up.html">
+      <a class="card" data-game="order-up" href="order-up.html">
         <div class="card-icon icon-order"></div>
         <div class="card-body">
           <h2 class="card-title">Order Up</h2>
@@ -55,7 +57,7 @@
         </div>
       </a>
 
-      <a class="card" href="secret-shopper.html">
+      <a class="card" data-game="secret-shopper" href="secret-shopper.html">
         <div class="card-icon icon-shopper"></div>
         <div class="card-body">
           <h2 class="card-title">Secret Shopper</h2>
@@ -122,6 +124,18 @@
   <script>
     PlayerCard.init(document.getElementById("pc-strip"));
     DailyCard.render(document.getElementById("dc"));
+
+    // Tag the most recently updated game (see data-latest on .cards).
+    {
+      const cards = document.querySelector(".cards");
+      const latest = cards.querySelector('.card[data-game="' + cards.dataset.latest + '"] .card-body');
+      if (latest) {
+        const tag = document.createElement("span");
+        tag.className = "badge badge-new";
+        tag.textContent = "✨ Updated";
+        latest.appendChild(tag);
+      }
+    }
 
     // Panels build their contents the first time they're opened.
     const built = {};

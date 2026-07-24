@@ -148,6 +148,13 @@ body {
   color: var(--muted);
 }
 
+/* The freshest game wears this (data-latest on .cards picks which). */
+.badge-new {
+  margin-left: 0.4rem;
+  background: linear-gradient(180deg, #ffe9a8, #f5c542);
+  color: #6a4c00;
+}
+
 /* --------------------------------------------------------- daily challenge */
 .dc {
   display: flex;
