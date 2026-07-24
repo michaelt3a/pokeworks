@@ -57,9 +57,6 @@
     "bowl-impossible": {
       async fetch() { return this._score("bowl_scores", "difficulty=eq.impossible", () => (local("pokeworks-bowl-leaderboard", {}).impossible || [])); },
     },
-    "ou-baby": {
-      async fetch() { return this._score("orderup_scores", "mode=eq.baby", () => (local("pokeworks-orderup-lb", {}).baby || [])); },
-    },
     "ou-normal": {
       async fetch() { return this._score("orderup_scores", "mode=eq.normal", () => (local("pokeworks-orderup-lb", {}).normal || [])); },
     },
@@ -115,7 +112,6 @@
       { label: "Speedrun", key: "sw-speedrun" },
     ] },
     { id: "ou", label: "Order Up", color: "#fd9f27", cats: [
-      { label: "Baby", key: "ou-baby" },
       { label: "Normal", key: "ou-normal" },
       { label: "Hard", key: "ou-hard" },
     ] },

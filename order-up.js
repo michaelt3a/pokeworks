@@ -35,7 +35,6 @@ const shopEl = document.getElementById("ou-shop");
 const overlay = document.getElementById("overlay");
 const screenStart = document.getElementById("screen-start");
 const screenOver = document.getElementById("screen-over");
-const startBabyBtn = document.getElementById("start-baby");
 const startNormalBtn = document.getElementById("start-normal");
 const startHardBtn = document.getElementById("start-hard");
 const againBtn = document.getElementById("again-btn");
@@ -121,7 +120,7 @@ function adsMult() { return 1 - 0.15 * upgradeLvl("ads"); }
 let best = 0; // best for the current mode (set once S exists)
 const S = {
   running: false,
-  mode: "normal", // "baby" | "normal" | "hard"
+  mode: "normal", // "normal" | "hard"
   score: 0, // money earned this shift (the leaderboard number)
   served: 0,
   lost: 0,
@@ -224,12 +223,11 @@ function pickRecipe() {
 // forgiving minute per customer with no ramp. Richer tiers are less patient.
 function maxPatienceFor(recipe, tier) {
   const t = (tier && tier.pat) || 1;
-  if (S.mode === "baby") return Math.round(60 * t);
   const ramp = Math.max(0.75, 1 - S.served * 0.02);
   return Math.round((recipeSize(recipe) * 2.2 + 12) * ramp * t);
 }
 function spawnInterval() {
-  const base = S.mode === "baby" ? 9 : Math.max(4.5, 10.5 - S.served * 0.22);
+  const base = Math.max(4.5, 10.5 - S.served * 0.22);
   return base * adsMult();
 }
 
@@ -442,7 +440,7 @@ function payoutFor(c, a) {
   if (!a.perfect) tip *= 0.5; // a fast-but-wrong bowl still earns a little
   let m = price + tip + (a.perfect ? S.combo * 2 : 0);
   const mult =
-    c.tier.pay * priceMult() * (S.mode === "hard" ? 1.5 : S.mode === "baby" ? 0.6 : 1);
+    c.tier.pay * priceMult() * (S.mode === "hard" ? 1.5 : 1);
   m *= mult;
   tip *= mult;
   if (a.frac <= 0) return { money: 0, tip: 0 };
@@ -840,7 +838,7 @@ function endGame() {
   const arrow = rNow > S.ratingStart + 0.01 ? "📈" : rNow < S.ratingStart - 0.01 ? "📉" : "";
   finalEl.innerHTML =
     `You made <strong>$${S.score}</strong> — served ${S.served}, lost ${S.lost}` +
-    ` <span class="ou-mode-tag">${S.mode === "hard" ? "Hard" : S.mode === "baby" ? "Baby" : "Normal"}</span>.` +
+    ` <span class="ou-mode-tag">${S.mode === "hard" ? "Hard" : "Normal"}</span>.` +
     `<br>★ ${S.ratingStart.toFixed(1)} → <strong>${rNow.toFixed(1)}</strong> ${arrow}` +
     (isBest && S.score > 0 ? `<br><span class="ou-best">★ New best shift!</span>` : "");
   renderShop();
@@ -1007,7 +1005,6 @@ async function submitLbName() {
 }
 
 // --- Wiring -------------------------------------------------------------
-startBabyBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame("baby"); });
 startNormalBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame("normal"); });
 startHardBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame("hard"); });
 againBtn.addEventListener("click", () => { ensureAudio(); SFX.start(); startGame(S.mode); });
