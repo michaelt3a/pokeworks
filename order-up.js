@@ -2047,9 +2047,16 @@ if (isDailyRun) {
 
 // Initial paint.
 T = loadTycoon();
+// You can't have a bank before you've worked a single shift — money only comes
+// from serving. A positive bank with zero completed shifts is unearned (an old
+// ?rich=1 test bank or a stale bug), so zero it out.
+if ((T.life.shifts || 0) === 0 && T.bank > 0) {
+  T.bank = 0;
+  saveTycoon();
+}
 // Playtest cheat: on a local/LAN server only, ?rich=1 stuffs the bank so
 // upgrades and the franchise can be tried without grinding. The hostname gate
-// makes it inert on the live site.
+// makes it inert on the live site. (Applied after the guard above so it wins.)
 const isLocalHost = /^(localhost|127\.0\.0\.1|\[::1\]|192\.168\.|10\.)/.test(location.hostname);
 if (isLocalHost && new URLSearchParams(location.search).get("rich") === "1") {
   T.bank = 999999;
