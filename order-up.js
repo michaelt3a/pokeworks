@@ -569,6 +569,14 @@ function stickmanSVG(shirt, mood, sitting) {
   // A proper stick figure: thin line body (tinted the customer's colour),
   // round head with a face. Seated guests bend their knees onto the chair.
   const L = 'stroke="' + shirt + '" stroke-width="5" stroke-linecap="round"';
+  // A chair drawn behind the seated figure so it always scales and lines up.
+  const chair = sitting
+    ? '<rect x="47" y="50" width="5" height="34" rx="2" fill="#b0803f"/>' + // backrest post
+      '<rect x="30" y="49" width="20" height="5" rx="2" fill="#c08640"/>' + // backrest top
+      '<rect x="26" y="79" width="30" height="6" rx="2" fill="#cf9a58"/>' + // seat
+      '<rect x="28" y="85" width="4" height="26" rx="1" fill="#a9773f"/>' + // front-left leg
+      '<rect x="50" y="85" width="4" height="26" rx="1" fill="#a9773f"/>'   // front-right leg
+    : "";
   const legs = sitting
     ? // thighs forward (roughly level), shins straight down — a seated pose
       '<line x1="32" y1="79" x2="50" y2="80" ' + L + "/>" +
@@ -580,6 +588,7 @@ function stickmanSVG(shirt, mood, sitting) {
       '<line x1="32" y1="78" x2="44" y2="112" ' + L + "/>";
   return (
     '<svg viewBox="0 0 64 120" width="100%" height="100%" aria-hidden="true">' +
+    chair +
     legs +
     // spine
     '<line x1="32" y1="40" x2="32" y2="79" ' + L + "/>" +
@@ -1707,6 +1716,76 @@ if (saveRestoreBtn) {
     }
   });
 }
+
+// --- Saved games: named slots you can keep and load back later ----------
+const SLOTS = 3;
+const screenSaves = document.getElementById("screen-saves");
+function slotKey(n) { return "pokeworks-orderup-slot-" + n; }
+function readSlot(n) {
+  try { const d = JSON.parse(localStorage.getItem(slotKey(n))); return d && Array.isArray(d.stores) ? d : null; }
+  catch (e) { return null; }
+}
+function saveToSlot(n) {
+  const snap = Object.assign({}, T, { savedAt: Date.now() });
+  try { localStorage.setItem(slotKey(n), JSON.stringify(snap)); } catch (e) { /* ignore */ }
+  SFX.bell();
+  renderSlots();
+}
+function renderSlots() {
+  const el = document.getElementById("ou-slots");
+  if (!el) return;
+  el.innerHTML = "";
+  for (let n = 0; n < SLOTS; n++) {
+    const d = readSlot(n);
+    const row = document.createElement("div");
+    row.className = "ou-slot";
+    const info = document.createElement("span");
+    info.className = "ou-slot-info";
+    if (d) {
+      const when = d.savedAt ? new Date(d.savedAt).toLocaleDateString() : "";
+      const stars = d.stores.length;
+      info.innerHTML = "<strong>Slot " + (n + 1) + "</strong><small>$" +
+        Math.floor(d.bank || 0).toLocaleString() + " · " + stars + " store" + (stars === 1 ? "" : "s") +
+        (when ? " · " + when : "") + "</small>";
+    } else {
+      info.innerHTML = "<strong>Slot " + (n + 1) + "</strong><small>Empty</small>";
+    }
+    row.appendChild(info);
+    if (d) {
+      const load = document.createElement("button");
+      load.type = "button"; load.className = "ou-slot-btn"; load.textContent = "Load";
+      load.addEventListener("click", () => {
+        localStorage.setItem(TYCOON_KEY, JSON.stringify(d));
+        location.reload();
+      });
+      const over = document.createElement("button");
+      over.type = "button"; over.className = "ou-slot-btn ghost"; over.textContent = "Overwrite";
+      over.addEventListener("click", () => saveToSlot(n));
+      row.append(load, over);
+    } else {
+      const save = document.createElement("button");
+      save.type = "button"; save.className = "ou-slot-btn"; save.textContent = "Save here";
+      save.addEventListener("click", () => saveToSlot(n));
+      row.appendChild(save);
+    }
+    el.appendChild(row);
+  }
+}
+function openSaves() {
+  renderSlots();
+  if (saveMsgEl) saveMsgEl.textContent = "";
+  if (saveCodeEl) saveCodeEl.classList.add("hidden");
+  screenStart.classList.add("hidden");
+  screenSaves.classList.remove("hidden");
+}
+function closeSaves() {
+  screenSaves.classList.add("hidden");
+  screenStart.classList.remove("hidden");
+}
+const openSavesBtn = document.getElementById("open-saves");
+const savesDoneBtn = document.getElementById("saves-done");
+if (openSavesBtn) openSavesBtn.addEventListener("click", () => { SFX.pick(); openSaves(); });
+if (savesDoneBtn) savesDoneBtn.addEventListener("click", () => { SFX.pick(); closeSaves(); });
 
 // --- Wiring -------------------------------------------------------------
 // Picking a ticket style opens the pace popup: Endless or Rush.

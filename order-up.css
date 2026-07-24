@@ -1073,8 +1073,8 @@
 .ou-cust.unseated .ou-seatme { font-size: 0.56rem; padding: 2px 7px; }
 .ou-cust.unseated .ou-nametag { font-size: 0.52rem; padding: 1px 6px; }
 
-/* Seated guests lift up onto the chair at their table (they sit, legs bent). */
-.ou-cust.seated { bottom: 30px; }
+/* Seated guests sit on their chair (drawn in the figure) at the table. */
+.ou-cust.seated { bottom: 14px; }
 
 /* The doormat at the entrance (left of the dining floor). */
 .ou-entrance {
@@ -1205,3 +1205,40 @@
 }
 .ou-save-code.hidden { display: none; }
 .ou-save-msg { margin: 0.4rem 0 0; font-size: 0.72rem; font-weight: 700; color: var(--teal-dark); min-height: 1em; }
+
+/* -------- Saved Games panel: slots ---------------------------------------- */
+.ou-saves-btn { margin-top: 0.6rem; }
+.ou-saves-hint {
+  max-width: 400px;
+  margin: 0.2rem auto 0.9rem;
+  font-size: 0.76rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.ou-slots { display: flex; flex-direction: column; gap: 0.55rem; margin-bottom: 1rem; }
+.ou-slot {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f2f8f8;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 0.55rem 0.7rem;
+  text-align: left;
+}
+.ou-slot-info { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ou-slot-info strong { font-size: 0.86rem; color: var(--text); }
+.ou-slot-info small { font-size: 0.7rem; color: var(--muted); }
+.ou-slot-btn {
+  flex: none;
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 800;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+}
+.ou-slot-btn.ghost { background: #b9c6c6; }
