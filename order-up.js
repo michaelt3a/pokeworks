@@ -70,6 +70,7 @@ const WAIT_DRAIN = 0.5; // patience rate for customers you're NOT serving
 // "-v2": bests are dollars now, so point-era records start over.
 const BEST_KEY = "pokeworks-orderup-best-v2";
 const TYCOON_KEY = "pokeworks-orderup-tycoon";
+const TUT_KEY = "pokeworks-orderup-tutorial-done";
 // Shirt colors to vary the stick figures.
 const SHIRTS = ["#ee435b", "#22b2b4", "#f0a52c", "#7c5cff", "#39a85b", "#e8709b"];
 const CUST_NAMES = [
@@ -221,7 +222,7 @@ function rating() {
 }
 // Upgrade effects. All of them sit out Daily Challenge runs so the day's board
 // compares raw skill, not who's richest.
-function upgradeLvl(k) { return isDailyRun ? 0 : store().upgrades[k] || 0; }
+function upgradeLvl(k) { return (isDailyRun || S.tutorial) ? 0 : store().upgrades[k] || 0; }
 function workerCount() { return upgradeLvl("worker"); } // 0-3 cooks
 function waiterCount() { return upgradeLvl("waiter"); } // 0-3 waiters
 function tableCount() { return BASE_TABLES + upgradeLvl("tables"); }
@@ -291,7 +292,7 @@ function creditOffline() {
 // rent. Bankruptcy is only resolved between shifts, never mid-service.
 let ecoSaveT = 0;
 function economyTick() {
-  if (isDailyRun) return; // dailies are stock, no chain economy
+  if (isDailyRun || S.tutorial) return; // dailies and the tutorial sit out the economy
   let net = 0;
   T.stores.forEach((st, i) => {
     const playingHere = S.running && i === T.current;
@@ -378,6 +379,8 @@ function isRush() { return S.mode.indexOf("-rush") !== -1; }
 const S = {
   running: false,
   paused: false, // true while the mid-shift shop is open
+  tutorial: false, // guided first shift (no clock, walkouts, events, or economy)
+  tutStep: 0,
   mode: "normal", // normal | hard | normal-rush | hard-rush
   score: 0, // money earned this shift (the leaderboard number)
   served: 0,
@@ -515,6 +518,7 @@ function showEventBanner(text, ms) {
 }
 
 function fireEvent() {
+  if (S.tutorial) return;
   const pool = ["rush"];
   // one special guest in the pipeline at a time
   if (!S.pendingSpecial && !S.customers.some((c) => c.special)) pool.push("critic", "inspector");
@@ -685,6 +689,7 @@ function seatCustomer(c) {
   SFX.pick();
   reflowDoor();
   if (S.activeId == null) setActive(c.id);
+  if (S.tutorial && S.tutStep === 0) setTut(1); // tutorial: seated the first guest
   return true;
 }
 // Keep the door queue tidy after someone is seated or leaves.
@@ -843,6 +848,7 @@ function payoutFor(c, a) {
 }
 
 function serve(c) {
+  if (S.tutorial) { tutorialServe(c); return; }
   const a = bowlAccuracy(c);
   const pay = payoutFor(c, a);
   const money = pay.money;
@@ -1219,6 +1225,79 @@ function waiterAct() {
   }
 }
 
+// --- First-shift tutorial -----------------------------------------------
+// A calm, guided first shift: one guest, no clock, no walkouts, no economy.
+// It advances as the player seats, builds, and serves, with a Skip button
+// available the whole time. Seen-once is remembered in localStorage.
+const tutBanner = document.getElementById("ou-tut-banner");
+const tutMsgEl = document.getElementById("ou-tut-msg");
+const tutSkipBtn = document.getElementById("ou-tut-skip-btn");
+const TUT_STEPS = [
+  "👋 Welcome to the line! A guest is waiting at the door. Tap them to seat them at a table.",
+  "Seated! Now build their order — tap the ingredients on their ticket below the counter.",
+  "Keep adding every item on the ticket. Scooped a wrong one? Tap it again to take it back out.",
+  "🎉 Served! Money banks as you go, and serving fast earns bigger tips. Keep your ⭐ rating up.",
+  "Between shifts, open the 🛒 Shop to hire cooks and waiters, add tables, and open new locations — they even run on their own. That's the basics!",
+];
+function tutorialDone() {
+  try { return localStorage.getItem(TUT_KEY) === "1"; } catch (e) { return true; }
+}
+function setTut(step) {
+  S.tutStep = step;
+  if (tutMsgEl) tutMsgEl.textContent = TUT_STEPS[step] || "";
+  if (tutSkipBtn) tutSkipBtn.textContent = step >= TUT_STEPS.length - 1 ? "Finish ✓" : "Skip tutorial";
+  if (tutBanner) tutBanner.classList.remove("hidden");
+}
+function startTutorial() {
+  if (S.running) return;
+  S.tutorial = true;
+  ensureAudio();
+  SFX.start();
+  startGame("normal"); // guards turn this into the sandbox
+  setTut(0);
+}
+function tutorialServe(c) {
+  const a = bowlAccuracy(c);
+  SFX.serve();
+  cashFloater(20, 5, a.perfect); // a sample payout — nothing is banked in the tutorial
+  removeCustomer(c, "served");
+  setTut(3);
+  setTimeout(() => { if (S.tutorial) setTut(4); }, 1900);
+}
+function finishTutorial() {
+  try { localStorage.setItem(TUT_KEY, "1"); } catch (e) { /* ignore */ }
+  S.tutorial = false;
+  S.tutStep = 0;
+  S.running = false;
+  for (const c of S.customers.slice()) if (c.el) c.el.remove();
+  S.customers = [];
+  S.activeId = null;
+  customersEl.innerHTML = "";
+  if (tutBanner) tutBanner.classList.add("hidden");
+  endShiftBtn.classList.add("hidden");
+  shopBtn.classList.add("hidden");
+  T.lastSeen = Date.now(); // no idle payout for the tutorial gap
+  renderTicket();
+  setStartScreenMode();
+  screenShop.classList.add("hidden");
+  screenSaves.classList.add("hidden");
+  screenOver.classList.add("hidden");
+  screenVariant.classList.add("hidden");
+  screenStart.classList.remove("hidden");
+  overlay.classList.remove("hidden");
+}
+// Show the tutorial call-to-action for new players, mode buttons for the rest.
+function setStartScreenMode() {
+  if (isDailyRun) return;
+  const done = tutorialDone();
+  const cta = document.getElementById("ou-tut-cta");
+  const modes = screenStart.querySelector(".ou-modes");
+  const replay = document.getElementById("tut-replay");
+  if (cta) cta.classList.toggle("hidden", done);
+  if (modes) modes.classList.toggle("hidden", !done);
+  if (replay) replay.classList.toggle("hidden", !done);
+}
+
 // --- Interaction --------------------------------------------------------
 function toggle(cat, name) {
   const c = activeCustomer();
@@ -1229,6 +1308,8 @@ function toggle(cat, name) {
   } else {
     c.sel[cat].add(name);
     SFX.add();
+    // Tutorial: first correct ingredient moves things along.
+    if (S.tutorial && S.tutStep === 1 && c.recipe.items[cat].includes(name)) setTut(2);
   }
   renderTicket();
   updatePans();
@@ -1242,7 +1323,7 @@ function frame(t) {
   const dt = Math.min((t - S.lastTime) / 1000, 0.05);
   S.lastTime = t;
 
-  if (S.running && !S.paused) {
+  if (S.running && !S.paused && !S.tutorial) {
     // Both modes run a closing clock so the shift always ends naturally;
     // Endless also ends early if too many guests storm out.
     S.timeLeft -= dt;
@@ -1325,8 +1406,8 @@ function startGame(mode) {
   S.elapsed = 0;
   S.rushUntil = 0;
   S.pendingSpecial = null;
-  // First event lands 20–35s in; dailies get none.
-  S.nextEventAt = isDailyRun ? Infinity : 20 + Math.random() * 15;
+  // First event lands 20–35s in; dailies and the tutorial get none.
+  S.nextEventAt = (isDailyRun || S.tutorial) ? Infinity : 20 + Math.random() * 15;
   if (eventBannerEl) eventBannerEl.classList.remove("show");
   S.customers = [];
   S.activeId = null;
@@ -1339,8 +1420,8 @@ function startGame(mode) {
   // visible timer there.
   customersEl.classList.toggle("rush", isRush());
   buildTables(tableCount()); // the tables upgrade may have changed the room
-  endShiftBtn.classList.remove("hidden");
-  shopBtn.classList.toggle("hidden", isDailyRun); // dailies are stock — no shop
+  endShiftBtn.classList.toggle("hidden", S.tutorial); // hidden during the tutorial
+  shopBtn.classList.toggle("hidden", isDailyRun || S.tutorial); // dailies/tutorial are stock
   resetEndShiftBtn();
   renderPace();
   renderWorkers();
@@ -1804,6 +1885,19 @@ const savesDoneBtn = document.getElementById("saves-done");
 if (openSavesBtn) openSavesBtn.addEventListener("click", () => { SFX.pick(); openSaves(); });
 if (savesDoneBtn) savesDoneBtn.addEventListener("click", () => { SFX.pick(); closeSaves(); });
 
+// Tutorial wiring
+const tutStartBtn = document.getElementById("tut-start");
+const tutSkipCtaBtn = document.getElementById("tut-skip");
+const tutReplayBtn = document.getElementById("tut-replay");
+if (tutStartBtn) tutStartBtn.addEventListener("click", () => { SFX.pick(); startTutorial(); });
+if (tutReplayBtn) tutReplayBtn.addEventListener("click", () => { SFX.pick(); startTutorial(); });
+if (tutSkipCtaBtn) tutSkipCtaBtn.addEventListener("click", () => {
+  try { localStorage.setItem(TUT_KEY, "1"); } catch (e) { /* ignore */ }
+  SFX.pick();
+  setStartScreenMode();
+});
+if (tutSkipBtn) tutSkipBtn.addEventListener("click", () => { SFX.pick(); finishTutorial(); });
+
 // --- Wiring -------------------------------------------------------------
 // Picking a ticket style opens the pace popup: Endless or Rush.
 let pendingBase = "normal"; // which ticket style the popup starts
@@ -1939,6 +2033,7 @@ if (!isDailyRun) {
   }
   updateBankDisplays();
   setInterval(economyTick, 1000);
+  setStartScreenMode(); // new players see the tutorial CTA
 }
 
 requestAnimationFrame(frame);

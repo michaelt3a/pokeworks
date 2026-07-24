@@ -1242,3 +1242,54 @@
   cursor: pointer;
 }
 .ou-slot-btn.ghost { background: #b9c6c6; }
+
+/* -------- First-shift tutorial ------------------------------------------- */
+.ou-tut-banner {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  width: min(94%, 560px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(180deg, #fff7e6, #ffe9a8);
+  border: 2px solid #f5c542;
+  border-radius: 12px;
+  padding: 8px 10px 8px 14px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
+}
+.ou-tut-banner.hidden { display: none; }
+#ou-tut-msg {
+  flex: 1 1 auto;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #6a4c00;
+  line-height: 1.35;
+  text-align: left;
+}
+.ou-tut-btn {
+  flex: none;
+  background: #2a2f31;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+}
+.ou-tut-btn:hover { background: #3a4143; }
+.ou-tut-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.2rem 0 0.5rem;
+}
+.ou-tut-cta.hidden { display: none; }
+.ou-modes.hidden { display: none; } /* new players see the tutorial CTA instead */
+.ou-tut-replay { margin-top: 0.4rem; font-size: 0.82rem; }
+.ou-tut-replay.hidden { display: none; }

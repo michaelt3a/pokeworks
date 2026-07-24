@@ -6,7 +6,7 @@
   <title>Order Up - Pokeworks</title>
   <meta name="description" content="Pokeworks Order Up rush minigame." />
   <link rel="stylesheet" href="styles.css?v=14" />
-  <link rel="stylesheet" href="order-up.css?v=22" />
+  <link rel="stylesheet" href="order-up.css?v=24" />
   <link rel="stylesheet" href="theme.css?v=3" />
   <meta name="theme-color" content="#0a1010" />
   <link rel="manifest" href="manifest.json" />
@@ -48,6 +48,12 @@
     </header>
 
     <div class="ou-stage">
+      <!-- First-shift tutorial coaching banner (over the scene) -->
+      <div class="ou-tut-banner hidden" id="ou-tut-banner">
+        <span id="ou-tut-msg"></span>
+        <button id="ou-tut-skip-btn" class="ou-tut-btn" type="button">Skip tutorial</button>
+      </div>
+
       <!-- Store scene: tiled wall + stick-figure customers across the counter -->
       <div class="ou-scene">
         <!-- The kitchen line across the back wall: menu board, the crew's
@@ -93,11 +99,16 @@
           <h1 class="overlay-title">Order Up</h1>
           <p class="overlay-subtitle">Serve bowls for money. Mistakes pay less and cost you stars. Bank it, buy upgrades, build a 5★ shop. Choose a mode:</p>
           <p class="ou-welcome hidden" id="ou-welcome"></p>
+          <div class="ou-tut-cta hidden" id="ou-tut-cta">
+            <button id="tut-start" class="btn" type="button">▶ Play the tutorial</button>
+            <button id="tut-skip" class="btn btn-secondary" type="button">Skip tutorial</button>
+          </div>
           <div class="ou-modes">
             <button id="start-normal" class="btn" type="button">Recipes Shown</button>
             <button id="start-hard" class="btn btn-secondary" type="button">Hidden Recipes</button>
           </div>
           <button id="open-saves" class="btn btn-secondary ou-saves-btn" type="button">💾 Saved Games</button>
+          <button id="tut-replay" class="btn btn-secondary ou-tut-replay hidden" type="button">❔ How to play</button>
           <p class="ou-bankline" id="ou-bankline"></p>
         </div>
 
@@ -182,7 +193,7 @@
   <script src="achievements.js?v=6"></script>
   <script src="bowl-render.js?v=3"></script>
   <script src="daily.js?v=3"></script>
-  <script src="order-up.js?v=31"></script>
+  <script src="order-up.js?v=32"></script>
   <script src="back-guard.js?v=1"></script>
   <script src="pwa.js?v=1"></script>
 </body>
