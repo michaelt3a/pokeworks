@@ -19,7 +19,7 @@
 /* ---------------- Store scene (customers across the counter) --------------- */
 .ou-scene {
   position: relative;
-  padding: 10px 16px 0;
+  padding: 122px 16px 0;
   /* subway-tile wall on top, a tiled floor band the customers stand on */
   background-color: #eef3f4;
   background-image:
@@ -472,12 +472,12 @@
 /* Kai, the auto-worker, at the right end of the line */
 .ou-workers {
   position: absolute;
-  right: 8px;
-  bottom: 30px;
-  z-index: 2;
+  left: 24%;
+  right: 6%;
+  bottom: 18px;
+  z-index: 1;
   display: flex;
-  flex-direction: row-reverse;
-  gap: 6px;
+  justify-content: space-evenly;
   pointer-events: none;
 }
 .ou-workers.hidden { display: none; }
@@ -488,6 +488,36 @@
   flex-direction: column;
   align-items: center;
   gap: 3px;
+}
+.ou-worker-fig {
+  position: relative;
+  flex: 1 1 auto;
+  width: 100%;
+}
+.ou-worker-stick,
+.ou-worker-arm {
+  position: absolute;
+  inset: 0;
+}
+/* The chopping arm swings from the shoulder while the crew is working. */
+.ou-worker-arm {
+  transform-origin: 50% 46%;
+}
+.ou-workers.working .ou-worker-arm {
+  animation: ou-chop 0.9s ease-in-out infinite;
+}
+.ou-workers.working .ou-worker:nth-child(2) .ou-worker-arm { animation-delay: 0.3s; }
+.ou-workers.working .ou-worker:nth-child(3) .ou-worker-arm { animation-delay: 0.6s; }
+.ou-workers.working .ou-worker-stick {
+  animation: ou-workbob 1.8s ease-in-out infinite;
+}
+@keyframes ou-chop {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-22deg); }
+}
+@keyframes ou-workbob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
 }
 .ou-worker-tag {
   font-size: 0.58rem;
@@ -500,7 +530,7 @@
   white-space: nowrap;
 }
 .ou-worker-stick { flex: 1 1 auto; width: 100%; }
-.ou-worker.scooping .ou-worker-stick { animation: ou-scoop 0.45s ease; }
+.ou-worker.scooping .ou-worker-fig { animation: ou-scoop 0.45s ease; }
 @keyframes ou-scoop {
   0%, 100% { transform: rotate(0); }
   35% { transform: rotate(-10deg) translateY(-4px); }
@@ -590,7 +620,7 @@
 }
 
 /* The upgrade shop on the Shift Over screen */
-#screen-over { max-width: 560px; max-height: 86vh; overflow-y: auto; }
+#screen-over, #screen-shop { max-width: 560px; max-height: 86vh; overflow-y: auto; }
 .ou-bank {
   margin: 0.1rem 0 0.6rem;
   font-size: 1rem;
@@ -642,7 +672,7 @@
 @media (max-width: 640px) {
   .ou-shop { grid-template-columns: 1fr; }
   .ou-stars { font-size: 0.9rem; }
-  .ou-workers { right: 4px; bottom: 24px; } .ou-worker { width: 40px; height: 84px; }
+  .ou-worker { width: 38px; height: 80px; }
   .ou-serve { font-size: 0.74rem; padding: 0.4rem 0.85rem; }
 }
 
@@ -869,4 +899,161 @@
   .ou-scene[data-tables="5"] .ou-cust { width: 64px; }
   .ou-scene[data-tables="5"] .ou-stick { width: 44px; height: 84px; }
   .ou-scene[data-tables="5"] .ou-bubble { font-size: 0.58rem; }
+}
+
+
+/* -------- The kitchen line across the back wall --------------------------- */
+.ou-kitchen {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  right: 10px;
+  height: 106px;
+  z-index: 1;
+}
+/* stainless counter the crew works behind (covers their legs) */
+.ou-kcounter {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 40px;
+  z-index: 2;
+  border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, #f2f7f8, #cdd8dc 34%, #aab8be 100%);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.18);
+}
+/* inset steam pans along the counter top */
+.ou-kcounter::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 5px;
+  height: 12px;
+  border-radius: 3px;
+  background: repeating-linear-gradient(
+    90deg,
+    #5f7078 0 34px,
+    #8fa1a8 34px 37px,
+    transparent 37px 46px
+  );
+  opacity: 0.85;
+}
+/* sneeze guard */
+.ou-kcounter::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: -14px;
+  height: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.12));
+  border-top: 2px solid rgba(255, 255, 255, 0.8);
+}
+/* menu board on the wall */
+.ou-menuboard {
+  position: absolute;
+  top: 0;
+  left: 2%;
+  width: 17%;
+  max-width: 96px;
+  height: 44px;
+  border-radius: 6px;
+  background: #223035;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+  border: 2px solid #31444b;
+}
+.ou-menuboard::before {
+  content: "MENU";
+  position: absolute;
+  top: 3px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  color: #ffd15a;
+}
+.ou-menuboard::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 18px;
+  height: 18px;
+  background: repeating-linear-gradient(180deg, rgba(244, 237, 227, 0.55) 0 2px, transparent 2px 7px);
+}
+
+/* -------- Mid-shift shop button + store tabs + summary --------------------- */
+.ou-shopbtn {
+  position: absolute;
+  left: 6px;
+  bottom: 44px;
+  z-index: 5;
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.4rem 0.85rem;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(34, 178, 180, 0.4);
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+.ou-shopbtn:hover { transform: translateY(-2px); filter: brightness(1.06); }
+.ou-shopbtn.hidden { display: none; }
+
+.ou-stores {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-bottom: 0.7rem;
+}
+.ou-stores:empty { display: none; }
+.ou-store-tab {
+  background: #f2f8f8;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: var(--text);
+  padding: 0.3rem 0.8rem;
+  cursor: pointer;
+}
+.ou-store-tab.active {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #fff;
+}
+.ou-store-tab:disabled { opacity: 0.55; cursor: default; }
+
+.ou-summary {
+  max-width: 340px;
+  margin: 0 auto 0.8rem;
+  text-align: left;
+}
+.ou-sum-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.28rem 0.2rem;
+  border-bottom: 1px dashed var(--border);
+  font-size: 0.85rem;
+  color: var(--text);
+}
+.ou-sum-row:last-child { border-bottom: none; }
+.ou-sum-row strong { font-variant-numeric: tabular-nums; }
+
+@media (max-width: 640px) {
+  .ou-scene { padding-top: 104px; }
+  .ou-kitchen { height: 90px; }
+  .ou-kcounter { height: 34px; }
+  .ou-menuboard { height: 38px; }
+  .ou-shopbtn { font-size: 0.64rem; padding: 0.35rem 0.7rem; bottom: 40px; }
 }

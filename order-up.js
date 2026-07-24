@@ -72,15 +72,15 @@ const TIERS = {
 };
 
 // Upgrades bought with banked money between shifts.
-const WORKER_NAMES = ["Kai", "Mai", "Rei"];
-const WORKER_SCOOP = 6; // seconds per scoop, per worker
+const WORKER_NAMES = ["Eli", "CJ", "Moe"];
+const WORKER_SCOOP = 6; // base seconds per scoop, per worker
 const UPGRADES = {
   worker: {
     icon: "🧑‍🍳", name: "Hire staff",
     desc: [
-      "Kai joins the line — he preps other customers' bowls",
-      "Mai makes it a crew of two",
-      "Rei completes the kitchen brigade",
+      "Eli joins the kitchen — he preps other customers' bowls",
+      "CJ makes it a crew of two",
+      "Moe completes the kitchen brigade",
     ],
     costs: [250, 700, 1600],
   },
@@ -104,28 +104,69 @@ const UPGRADES = {
     desc: ["Customers arrive 15% sooner", "Customers arrive 30% sooner"],
     costs: [180, 450],
   },
+  tipjar: {
+    icon: "🫙", name: "Tip jar",
+    desc: ["+30% tips", "+60% tips"],
+    costs: [220, 480],
+  },
+  speed: {
+    icon: "🔪", name: "Sharper knives",
+    desc: ["The crew preps 25% faster", "The crew preps 50% faster"],
+    costs: [350, 750],
+  },
+  loyalty: {
+    icon: "💳", name: "Loyalty program",
+    desc: ["Regulars talk you up — richer customers sooner", "The word is out — VIPs seek you out"],
+    costs: [400, 900],
+  },
 };
 
-// --- Persistent restaurant (bank, upgrades, reviews, lifetime) ----------
+// --- Persistent restaurant chain (bank, stores, lifetime) ----------------
+// Each store (franchise location) keeps its OWN upgrades and reviews; the
+// bank and lifetime stats are chain-wide. T.current picks the store you run.
+function freshStore() {
+  const u = {};
+  for (const k of Object.keys(UPGRADES)) u[k] = 0;
+  return { upgrades: u, reviews: [] };
+}
 function freshTycoon() {
   return {
     bank: 0,
-    upgrades: { worker: 0, prices: 0, lobby: 0, ads: 0, tables: 0 },
-    reviews: [],
-    franchises: 0, // permanent +10% earnings each (see the Franchise shop card)
+    stores: [freshStore()],
+    current: 0,
     life: { served: 0, perfect: 0, walkouts: 0, earned: 0, shifts: 0 },
   };
 }
 let T = freshTycoon();
+function store() { return T.stores[T.current] || T.stores[0]; }
 function loadTycoon() {
   try {
     const t = JSON.parse(localStorage.getItem(TYCOON_KEY));
-    if (t && t.upgrades) {
-      const fresh = freshTycoon();
-      return Object.assign(fresh, t, {
-        upgrades: Object.assign(fresh.upgrades, t.upgrades),
-        life: Object.assign(fresh.life, t.life || {}),
+    if (t && Array.isArray(t.stores)) {
+      const out = Object.assign(freshTycoon(), t);
+      out.stores = t.stores.map((st) => {
+        const f = freshStore();
+        return { upgrades: Object.assign(f.upgrades, st.upgrades || {}), reviews: st.reviews || [] };
       });
+      out.current = Math.min(out.current || 0, out.stores.length - 1);
+      out.life = Object.assign(freshTycoon().life, t.life || {});
+      return out;
+    }
+    if (t && t.upgrades) {
+      // Migrate the single-store save: its upgrades/reviews become the newest
+      // store, with an empty store per franchise already opened (those were
+      // reset under the old model anyway, so nothing is lost).
+      const out = freshTycoon();
+      out.bank = t.bank || 0;
+      out.life = Object.assign(out.life, t.life || {});
+      out.stores = [];
+      for (let i = 0; i < (t.franchises || 0); i++) out.stores.push(freshStore());
+      const cur = freshStore();
+      cur.upgrades = Object.assign(cur.upgrades, t.upgrades);
+      cur.reviews = t.reviews || [];
+      out.stores.push(cur);
+      out.current = out.stores.length - 1;
+      return out;
     }
   } catch { /* fall through */ }
   return freshTycoon();
@@ -133,27 +174,30 @@ function loadTycoon() {
 function saveTycoon() {
   try { localStorage.setItem(TYCOON_KEY, JSON.stringify(T)); } catch { /* ignore */ }
 }
-// Rating = average of the last 20 reviews; a new restaurant starts at 3.0.
+// Rating = the current store's last 20 reviews; new stores open at 3.0.
 function rating() {
-  const r = T.reviews;
+  const r = store().reviews;
   if (!r.length) return 3;
   return r.reduce((a, b) => a + b, 0) / r.length;
 }
 // Upgrade effects. All of them sit out Daily Challenge runs so the day's board
 // compares raw skill, not who's richest.
-function upgradeLvl(k) { return isDailyRun ? 0 : T.upgrades[k] || 0; }
+function upgradeLvl(k) { return isDailyRun ? 0 : store().upgrades[k] || 0; }
 function workerCount() { return upgradeLvl("worker"); } // 0-3 hires
 function tableCount() { return BASE_TABLES + upgradeLvl("tables"); }
 function priceMult() { return 1 + 0.2 * upgradeLvl("prices"); }
 function lobbyMult() { return 1 - 0.1 * upgradeLvl("lobby"); }
 function adsMult() { return 1 - 0.15 * upgradeLvl("ads"); }
-// Each franchise is a permanent +10% on earnings. Like upgrades, it sits out
-// daily runs.
-function franchiseMult() { return isDailyRun ? 1 : 1 + 0.1 * (T.franchises || 0); }
+// Every location past the first is a permanent +10% on earnings, chain-wide.
+// Like upgrades, the perk sits out daily runs.
+function franchiseMult() { return isDailyRun ? 1 : 1 + 0.1 * (T.stores.length - 1); }
 const FRANCHISE_COST = 1500;
 function franchiseReady() {
-  return Object.keys(UPGRADES).every((k) => (T.upgrades[k] || 0) >= UPGRADES[k].costs.length);
+  return Object.keys(UPGRADES).every((k) => (store().upgrades[k] || 0) >= UPGRADES[k].costs.length);
 }
+// New upgrade effects
+function tipMult() { return 1 + 0.3 * upgradeLvl("tipjar"); }
+function workerScoopTime() { return WORKER_SCOOP * (1 - 0.25 * upgradeLvl("speed")); }
 
 // --- State --------------------------------------------------------------
 let best = 0; // best for the current mode (set once S exists)
@@ -164,6 +208,7 @@ function isHard() { return S.mode.indexOf("hard") === 0; }
 function isRush() { return S.mode.indexOf("-rush") !== -1; }
 const S = {
   running: false,
+  paused: false, // true while the mid-shift shop is open
   mode: "normal", // normal | hard | normal-rush | hard-rush
   score: 0, // money earned this shift (the leaderboard number)
   served: 0,
@@ -171,6 +216,7 @@ const S = {
   combo: 0,
   timeLeft: SHIFT_LEN,
   workerT: [],
+  shift: { tips: 0, perfects: 0, bestCombo: 0 },
   ratingStart: 3,
   customers: [],
   activeId: null,
@@ -322,7 +368,8 @@ function fireEvent() {
 // runs are all regulars so the shared board stays fair.
 function pickTier() {
   if (isDailyRun) return TIERS.regular;
-  const r = rating();
+  // The loyalty program makes the room read your rating generously.
+  const r = rating() + 0.4 * upgradeLvl("loyalty");
   const roll = Math.random();
   if (r >= 4.6) {
     if (roll < 0.2) return TIERS.vip;
@@ -549,7 +596,7 @@ function payoutFor(c, a) {
   if (c.special === "inspector") return { money: 0, tip: 0 };
   const price = (10 + a.size * 1.5) * a.frac;
   const speedFrac = Math.max(0, c.patience / c.maxPatience);
-  let tip = price * 0.6 * speedFrac * a.frac;
+  let tip = price * 0.6 * speedFrac * a.frac * tipMult();
   if (!a.perfect) tip *= 0.5; // a fast-but-wrong bowl still earns a little
   let m = price + tip + (a.perfect ? S.combo * 2 : 0);
   const mult =
@@ -569,6 +616,8 @@ function serve(c) {
   const money = pay.money;
   S.score += money;
   S.served++;
+  S.shift.tips += pay.tip;
+  if (a.perfect) S.shift.perfects++;
   T.life.served++;
   if (a.perfect) T.life.perfect++;
   T.life.earned += money;
@@ -580,6 +629,7 @@ function serve(c) {
   }
   // Only a perfect bowl keeps the combo alive.
   S.combo = a.perfect ? S.combo + 1 : 0;
+  S.shift.bestCombo = Math.max(S.shift.bestCombo, S.combo);
   renderMoney();
   updateCombo();
   if (a.perfect) SFX.serve();
@@ -651,11 +701,12 @@ function starRow(n) {
 function postReview(c, r, weight) {
   const w = weight || 1;
   if (!isDailyRun) {
-    for (let i = 0; i < w; i++) T.reviews.push(r.stars);
-    if (T.reviews.length > 20) T.reviews = T.reviews.slice(-20);
+    const st = store();
+    for (let i = 0; i < w; i++) st.reviews.push(r.stars);
+    if (st.reviews.length > 20) st.reviews = st.reviews.slice(-20);
     saveTycoon();
     renderRating();
-    if (window.PokeAch && T.reviews.length >= 10 && rating() >= 4.8) PokeAch.unlock("ou-5star");
+    if (window.PokeAch && st.reviews.length >= 10 && rating() >= 4.8) PokeAch.unlock("ou-5star");
   }
   const headIcon = c.special === "critic" ? "🎩 " : c.special === "inspector" ? "📋 " : c.tier.icon ? c.tier.icon + " " : "";
   const toast = document.createElement("div");
@@ -822,19 +873,17 @@ function updatePans() {
 // --- Kai, the visible auto-worker ---------------------------------------
 // A teal stick figure in whites who stands at the end of the line and scoops
 // for you. He's drawn in the scene so hiring him visibly changes the store.
-function workerSVG() {
-  const L = 'stroke="#1b9092" stroke-width="5" stroke-linecap="round"';
+// The figure is two layers: a body, and a separate arm-with-spoon that the
+// CSS swings in a chopping loop while the crew is working.
+function workerBodySVG(shirt) {
+  const L = 'stroke="' + shirt + '" stroke-width="5" stroke-linecap="round"';
   return (
     '<svg viewBox="0 0 64 130" width="100%" height="100%" aria-hidden="true">' +
     '<line x1="32" y1="88" x2="20" y2="122" ' + L + "/>" +
     '<line x1="32" y1="88" x2="44" y2="122" ' + L + "/>" +
     '<line x1="32" y1="50" x2="32" y2="89" ' + L + "/>" +
-    // one arm out toward the pans, one down
-    '<line x1="32" y1="60" x2="52" y2="52" ' + L + "/>" +
+    // the off hand rests on the counter
     '<line x1="32" y1="60" x2="18" y2="76" ' + L + "/>" +
-    // spoon in the outstretched hand
-    '<line x1="52" y1="52" x2="60" y2="46" stroke="#8b96a0" stroke-width="3" stroke-linecap="round"/>' +
-    '<ellipse cx="61" cy="44" rx="4" ry="3" fill="#c6ced4"/>' +
     // apron over the spine
     '<rect x="24" y="58" width="16" height="26" rx="5" fill="#ffffff" opacity="0.92"/>' +
     // head + chef hat
@@ -846,8 +895,19 @@ function workerSVG() {
     "</svg>"
   );
 }
+function workerArmSVG(shirt) {
+  return (
+    '<svg viewBox="0 0 64 130" width="100%" height="100%" aria-hidden="true">' +
+    '<line x1="32" y1="60" x2="52" y2="52" stroke="' + shirt + '" stroke-width="5" stroke-linecap="round"/>' +
+    '<line x1="52" y1="52" x2="60" y2="46" stroke="#8b96a0" stroke-width="3" stroke-linecap="round"/>' +
+    '<ellipse cx="61" cy="44" rx="4" ry="3" fill="#c6ced4"/>' +
+    "</svg>"
+  );
+}
+const WORKER_SHIRTS = ["#1b9092", "#7c5cff", "#d6304a"];
 
-// The crew stands together at the end of the line, one figure per hire.
+// The crew works the kitchen line at the back of the store, one figure per
+// hire, each behind the counter with their own station.
 function renderWorkers() {
   const n = workerCount();
   workerEl.classList.toggle("hidden", n === 0);
@@ -857,7 +917,10 @@ function renderWorkers() {
     w.className = "ou-worker";
     w.innerHTML =
       `<span class="ou-worker-tag">🧑‍🍳 ${WORKER_NAMES[i]}</span>` +
-      `<span class="ou-worker-stick">${workerSVG()}</span>`;
+      `<span class="ou-worker-fig">` +
+      `<span class="ou-worker-stick">${workerBodySVG(WORKER_SHIRTS[i])}</span>` +
+      `<span class="ou-worker-arm">${workerArmSVG(WORKER_SHIRTS[i])}</span>` +
+      `</span>`;
     workerEl.appendChild(w);
   }
 }
@@ -914,7 +977,7 @@ function frame(t) {
   const dt = Math.min((t - S.lastTime) / 1000, 0.05);
   S.lastTime = t;
 
-  if (S.running) {
+  if (S.running && !S.paused) {
     // Rush races the clock; Endless has no clock and ends on walkouts.
     if (isRush()) {
       S.timeLeft -= dt;
@@ -933,11 +996,14 @@ function frame(t) {
       // ingredient into the active customer's bowl.
       const crew = workerCount();
       if (crew) {
+        const scoopT = workerScoopTime();
         for (let i = 0; i < crew; i++) {
           S.workerT[i] = (S.workerT[i] || 0) + dt;
-          if (S.workerT[i] >= WORKER_SCOOP) { S.workerT[i] = 0; workerAct(i); }
+          if (S.workerT[i] >= scoopT) { S.workerT[i] = 0; workerAct(i); }
         }
       }
+      // The crew visibly works whenever there's anyone to cook for.
+      workerEl.classList.toggle("working", S.customers.length > 0);
       for (const c of S.customers.slice()) {
         // The customer you're serving loses patience at full speed; everyone
         // waiting drains slower. A comfy lobby slows the whole room down.
@@ -979,6 +1045,8 @@ function startGame(mode) {
   S.combo = 0;
   S.timeLeft = SHIFT_LEN;
   S.workerT = WORKER_NAMES.map((_, i) => i * 2); // stagger the crew
+  S.shift = { tips: 0, perfects: 0, bestCombo: 0 };
+  S.paused = false;
   S.ratingStart = rating();
   S.elapsed = 0;
   S.rushUntil = 0;
@@ -998,6 +1066,7 @@ function startGame(mode) {
   customersEl.classList.toggle("rush", isRush());
   buildTables(tableCount()); // the tables upgrade may have changed the room
   endShiftBtn.classList.remove("hidden");
+  shopBtn.classList.toggle("hidden", isDailyRun); // dailies are stock — no shop
   resetEndShiftBtn();
   renderPace();
   renderWorkers();
@@ -1011,11 +1080,23 @@ function startGame(mode) {
 
 function endGame() {
   S.running = false;
+  S.paused = false;
   endShiftBtn.classList.add("hidden");
+  shopBtn.classList.add("hidden");
+  screenShop.classList.add("hidden"); // in case the shift ends... it can't while paused, but belt and braces
   resetEndShiftBtn();
   SFX.over();
   // Whoever's still in line just heads home — the shift is over, no penalty.
   for (const c of S.customers.slice()) removeCustomer(c, "leaving");
+  // Closing up is worth something: your reputation pays a closing bonus of up
+  // to +25% of the shift, scaled by the store's rating. (Not on dailies — the
+  // shared board stays raw.)
+  let bonus = 0;
+  if (!isDailyRun && S.score > 0) {
+    bonus = Math.round(S.score * (rating() / 5) * 0.25);
+    S.score += bonus;
+    renderMoney();
+  }
   const isBest = S.score > best;
   if (isBest) { best = S.score; saveBest(best); }
   bestEl.textContent = "$" + best;
@@ -1028,16 +1109,29 @@ function endGame() {
     lifeEl.textContent =
       "Lifetime: $" + T.life.earned.toLocaleString() + " earned · " +
       T.life.served + " served · " + T.life.shifts + " shift" + (T.life.shifts === 1 ? "" : "s") +
-      (T.franchises ? " · 🏪 ×" + (T.franchises + 1) : "");
+      (T.stores.length > 1 ? " · 🏪 ×" + T.stores.length : "");
   }
   const rNow = rating();
   const arrow = rNow > S.ratingStart + 0.01 ? "📈" : rNow < S.ratingStart - 0.01 ? "📉" : "";
   finalEl.innerHTML =
-    `You made <strong>$${S.score}</strong> — served ${S.served}${isRush() ? "" : ", lost " + S.lost}` +
-    ` <span class="ou-mode-tag">${isHard() ? "Hard" : "Normal"}${isRush() ? " · Rush" : " · Endless"}</span>.` +
-    `<br>★ ${S.ratingStart.toFixed(1)} → <strong>${rNow.toFixed(1)}</strong> ${arrow}` +
-    (isBest && S.score > 0 ? `<br><span class="ou-best">★ New best shift!</span>` : "");
-  renderShop();
+    `<strong>${S.score}</strong> banked ` +
+    `<span class="ou-mode-tag">${isHard() ? "Hard" : "Normal"}${isRush() ? " · Rush" : " · Endless"}</span>` +
+    (isBest && S.score > 0 ? ` <span class="ou-best">★ New best shift!</span>` : "");
+  const sumEl = document.getElementById("ou-summary");
+  if (sumEl) {
+    const rows = [
+      ["🍜", "Bowls served", S.served],
+      ["✨", "Perfect bowls", S.shift.perfects],
+      ["💵", "Tips collected", "$" + Math.round(S.shift.tips)],
+      ["🔥", "Best combo", "x" + S.shift.bestCombo],
+    ];
+    if (!isRush()) rows.push(["🚶", "Walkouts", S.lost]);
+    if (bonus) rows.push(["⭐", "Closing bonus (★" + rNow.toFixed(1) + ")", "+$" + bonus]);
+    rows.push(["📊", "Rating", "★ " + S.ratingStart.toFixed(1) + " → ★ " + rNow.toFixed(1) + " " + arrow]);
+    sumEl.innerHTML = rows
+      .map((r) => `<div class="ou-sum-row"><span>${r[0]} ${r[1]}</span><strong>${r[2]}</strong></div>`)
+      .join("");
+  }
 
   // Offer a leaderboard entry for any scoring shift (boards live on the hub).
   ouLbDone.classList.add("hidden");
@@ -1062,24 +1156,60 @@ function endGame() {
   overlay.classList.remove("hidden");
 }
 
-// --- The upgrade shop (on the Shift Over screen) --------------------------
+// --- The upgrade shop (its own panel; reachable mid-shift too) ------------
+const screenShop = document.getElementById("screen-shop");
+const storesEl = document.getElementById("ou-stores");
+const shopBtn = document.getElementById("shop-btn");
+const shopDoneBtn = document.getElementById("shop-done");
+const overShopBtn = document.getElementById("over-shop-btn");
+
+// Purchases apply immediately — mid-shift buys reshape the running room.
+function applyLive() {
+  renderWorkers();
+  buildTables(tableCount());
+  for (const c of S.customers) {
+    c.el.style.left = tableSpotPct(c.tableIdx, tableCount()) + "%";
+  }
+  renderRating();
+}
+
 function renderShop() {
   if (!shopEl) return;
-  // Daily runs are stock-restaurant; no shopping between attempts.
-  if (isDailyRun) {
-    bankEl.classList.add("hidden");
-    shopEl.classList.add("hidden");
-    return;
-  }
-  bankEl.classList.remove("hidden");
-  shopEl.classList.remove("hidden");
   bankEl.innerHTML =
     `💰 Bank: <strong>$${T.bank}</strong>` +
-    (T.franchises ? ` <span class="ou-fr-badge">🏪 Pokeworks #${T.franchises + 1} · +${T.franchises * 10}% earnings</span>` : "");
+    (T.stores.length > 1
+      ? ` <span class="ou-fr-badge">🏪 +${(T.stores.length - 1) * 10}% chain bonus</span>`
+      : "");
+
+  // Store tabs: each location is its own build. Switching is a between-shifts
+  // decision, so the tabs lock while a shift is running.
+  storesEl.innerHTML = "";
+  if (T.stores.length > 1) {
+    T.stores.forEach((st, i) => {
+      const starAvg = st.reviews.length
+        ? st.reviews.reduce((a, b) => a + b, 0) / st.reviews.length
+        : 3;
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "ou-store-tab" + (i === T.current ? " active" : "");
+      b.textContent = "🏪 #" + (i + 1) + " · ★" + starAvg.toFixed(1);
+      b.disabled = S.running && i !== T.current;
+      b.addEventListener("click", () => {
+        if (S.running || i === T.current) return;
+        T.current = i;
+        saveTycoon();
+        SFX.pick();
+        applyLive();
+        renderShop();
+      });
+      storesEl.appendChild(b);
+    });
+  }
+
   shopEl.innerHTML = "";
   for (const key of Object.keys(UPGRADES)) {
     const u = UPGRADES[key];
-    const lvl = T.upgrades[key] || 0;
+    const lvl = store().upgrades[key] || 0;
     const maxed = lvl >= u.costs.length;
     const cost = maxed ? 0 : u.costs[lvl];
     const card = document.createElement("div");
@@ -1102,49 +1232,72 @@ function renderShop() {
       btn.addEventListener("click", () => {
         if (T.bank < cost) return;
         T.bank -= cost;
-        T.upgrades[key] = lvl + 1;
+        store().upgrades[key] = lvl + 1;
         saveTycoon();
         SFX.bell();
         if (window.PokeAch) PokeAch.unlock("ou-upgrade");
+        applyLive();
         renderShop();
-        renderWorkers(); // hiring Kai shows him immediately
       });
     }
     card.appendChild(btn);
     shopEl.appendChild(card);
   }
 
-  // Franchise: the endgame card. Max everything, then trade it all in for a
-  // permanent +10% and a fresh store.
+  // Open the next location: needs the current store fully built out. Each new
+  // store starts fresh but adds a permanent +10% chain-wide.
   const ready = franchiseReady();
   const fr = document.createElement("div");
   fr.className = "ou-up ou-up-franchise" + (ready ? "" : " locked");
   fr.innerHTML =
     `<span class="ou-up-icon">🏪</span>` +
-    `<span class="ou-up-body"><strong>Open a franchise</strong>` +
+    `<span class="ou-up-body"><strong>Open location #${T.stores.length + 1}</strong>` +
     `<small>${ready
-      ? "Reset upgrades & rating for a permanent +10% earnings. Forever."
-      : "Max every upgrade to unlock. Then: permanent +10% earnings."}</small></span>`;
+      ? "A fresh store to build, and a permanent +10% chain bonus. Forever."
+      : "Max every upgrade in this store to unlock."}</small></span>`;
   const frBtn = document.createElement("button");
   frBtn.type = "button";
   frBtn.className = "ou-up-buy";
   frBtn.textContent = "$" + FRANCHISE_COST;
-  frBtn.disabled = !ready || T.bank < FRANCHISE_COST;
+  frBtn.disabled = !ready || T.bank < FRANCHISE_COST || S.running;
   frBtn.addEventListener("click", () => {
-    if (!franchiseReady() || T.bank < FRANCHISE_COST) return;
+    if (!franchiseReady() || T.bank < FRANCHISE_COST || S.running) return;
     T.bank -= FRANCHISE_COST;
-    T.franchises = (T.franchises || 0) + 1;
-    T.upgrades = { worker: 0, prices: 0, lobby: 0, ads: 0, tables: 0 };
-    T.reviews = []; // a new store earns its own reputation
+    T.stores.push(freshStore());
+    T.current = T.stores.length - 1;
     saveTycoon();
     SFX.serve();
     if (window.PokeAch) PokeAch.unlock("ou-franchise");
-    renderRating();
-    renderWorkers(); // Kai heads to the new store too
+    applyLive();
     renderShop();
   });
   fr.appendChild(frBtn);
   shopEl.appendChild(fr);
+}
+
+// Opening the shop mid-shift pauses the room; closing it resumes.
+let shopReturn = null; // "over" | "game"
+function openShop(from) {
+  shopReturn = from;
+  renderShop();
+  screenOver.classList.add("hidden");
+  screenStart.classList.add("hidden");
+  screenVariant.classList.add("hidden");
+  screenShop.classList.remove("hidden");
+  if (from === "game") {
+    S.paused = true;
+    overlay.classList.remove("hidden");
+  }
+}
+function closeShop() {
+  screenShop.classList.add("hidden");
+  if (shopReturn === "game") {
+    overlay.classList.add("hidden");
+    S.paused = false;
+  } else {
+    screenOver.classList.remove("hidden");
+  }
+  shopReturn = null;
 }
 
 // --- Leaderboard submission (viewed on the hub) ---------------------------
@@ -1273,6 +1426,14 @@ function resetEndShiftBtn() {
   endShiftBtn.classList.remove("armed");
   endShiftBtn.textContent = "🔚 End Shift";
 }
+shopBtn.addEventListener("click", () => {
+  if (!S.running || isDailyRun) return;
+  SFX.pick();
+  openShop("game");
+});
+shopDoneBtn.addEventListener("click", () => { SFX.pick(); closeShop(); });
+overShopBtn.addEventListener("click", () => { SFX.pick(); openShop("over"); });
+
 endShiftBtn.addEventListener("click", () => {
   if (!S.running) return;
   if (!endShiftBtn.classList.contains("armed")) {
